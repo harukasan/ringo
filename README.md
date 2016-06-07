@@ -1,2 +1,3 @@
-# ringo
-Ruby in Go
+# Ringo
+
+Ringo is experimental project to implement ruby interpreter in Golang.
