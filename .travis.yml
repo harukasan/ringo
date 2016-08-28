@@ -4,5 +4,7 @@ go:
   - 1.7
   - tip
 
+install:
+  - make get-deps
 script:
   - make test
