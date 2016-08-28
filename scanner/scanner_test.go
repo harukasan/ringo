@@ -166,6 +166,60 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	"**=": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.AssignPow, nil)
 	},
+	"+1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("+1"))
+	},
+	"-1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("-1"))
+	},
+	"0": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("0"))
+	},
+	"123_456_789_0": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("123_456_789_0"))
+	},
+	"0d1234567890": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("0d1234567890"))
+	},
+	"0b0101": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.BinaryInteger, []byte("0b0101"))
+	},
+	"0B0101": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.BinaryInteger, []byte("0B0101"))
+	},
+	"0_12345670": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.OctadecimalInteger, []byte("0_12345670"))
+	},
+	"0o12345670": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.OctadecimalInteger, []byte("0o12345670"))
+	},
+	"0O12345670": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.OctadecimalInteger, []byte("0O12345670"))
+	},
+	"0x1234567890abcdef": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.HexadecimalInteger, []byte("0x1234567890abcdef"))
+	},
+	"0X1234567890abcdef": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.HexadecimalInteger, []byte("0X1234567890abcdef"))
+	},
+	"x+1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.IDENT, []byte("x"))
+		assertScan(t, s, 1, token.Plus, nil)
+		assertScan(t, s, 2, token.DecimalInteger, []byte("1"))
+	},
+	"x +1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.IDENT, []byte("x"))
+		assertScan(t, s, 2, token.DecimalInteger, []byte("+1"))
+	},
+	"x-1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.IDENT, []byte("x"))
+		assertScan(t, s, 1, token.Minus, nil)
+		assertScan(t, s, 2, token.DecimalInteger, []byte("1"))
+	},
+	"x -1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.IDENT, []byte("x"))
+		assertScan(t, s, 2, token.DecimalInteger, []byte("-1"))
+	},
 	"a  b": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.IDENT, []byte("a"))
 		assertScan(t, s, 3, token.IDENT, []byte("b"))

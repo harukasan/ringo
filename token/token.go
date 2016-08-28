@@ -9,11 +9,17 @@ type Token int
 
 // Token definitions:
 const (
-	Continue Token = iota
+	None Token = iota
+	Continue
 	Illegal
 	IDENT
 	EOF
 	NewLine // new line
+
+	BinaryInteger
+	DecimalInteger
+	OctadecimalInteger
+	HexadecimalInteger
 
 	// operators
 	Not         // !
