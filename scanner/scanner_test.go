@@ -19,6 +19,14 @@ func assertScan(t *testing.T, s *Scanner, pos int, token token.Token, literal []
 }
 
 var rules = map[string]func(t *testing.T, s *Scanner){
+	// new line
+	"\n": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.NewLine, nil)
+	},
+	"\r\n": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 1, token.NewLine, nil)
+	},
+	// white spaces
 	"": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.EOF, nil)
 	},
@@ -28,15 +36,15 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	" \t": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 2, token.EOF, nil)
 	},
-	"a": func(t *testing.T, s *Scanner) {
+	// comment
+	" #": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 2, token.EOF, nil)
+	},
+	"a#b": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.IDENT, []byte("a"))
+		assertScan(t, s, 3, token.EOF, nil)
 	},
-	"\n": func(t *testing.T, s *Scanner) {
-		assertScan(t, s, 0, token.NewLine, nil)
-	},
-	"\r\n": func(t *testing.T, s *Scanner) {
-		assertScan(t, s, 1, token.NewLine, nil)
-	},
+	// operators
 	"!": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.Not, nil)
 	},
@@ -52,6 +60,7 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	"||": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.OrOperator, nil)
 	},
+	// operator methods
 	"^": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.Xor, nil)
 	},
@@ -124,6 +133,7 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	"[]=": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.ElementSet, nil)
 	},
+	// assign operators
 	"=": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.Assign, nil)
 	},
@@ -166,6 +176,7 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	"**=": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.AssignPow, nil)
 	},
+	// numeric literals
 	"+1": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.DecimalInteger, []byte("+1"))
 	},
@@ -202,6 +213,12 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	"0X1234567890abcdef": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.HexadecimalInteger, []byte("0X1234567890abcdef"))
 	},
+	"+0x1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.HexadecimalInteger, []byte("+0x1"))
+	},
+	"-0X1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.HexadecimalInteger, []byte("-0X1"))
+	},
 	"0.1": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.Float, []byte("0.1"))
 	},
@@ -235,16 +252,13 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 		assertScan(t, s, 0, token.IDENT, []byte("x"))
 		assertScan(t, s, 2, token.DecimalInteger, []byte("-1"))
 	},
+	// ident
+	"a": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.IDENT, []byte("a"))
+	},
 	"a  b": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.IDENT, []byte("a"))
 		assertScan(t, s, 3, token.IDENT, []byte("b"))
-	},
-	" #": func(t *testing.T, s *Scanner) {
-		assertScan(t, s, 2, token.EOF, nil)
-	},
-	"a#b": func(t *testing.T, s *Scanner) {
-		assertScan(t, s, 0, token.IDENT, []byte("a"))
-		assertScan(t, s, 3, token.EOF, nil)
 	},
 }
 
