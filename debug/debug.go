@@ -29,7 +29,7 @@ func output(s string) {
 	_, file, line, _ := runtime.Caller(2)
 	fmt.Fprintf(Output, "%s:%d> %s", path.Base(file), line, s)
 	if s[len(s)-1] != '\n' {
-		Output.Write([]byte{'\n'})
+		fmt.Fprint(Output, "\n")
 	}
 }
 
