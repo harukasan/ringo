@@ -256,31 +256,16 @@ func scanZero(s *Scanner, offset int) (int, token.Token, []byte) {
 	case '.':
 		s.next()
 		return scanFloatDecimal(s, offset)
-	case 'd':
+	case 'd', 'D':
 		s.next()
 		return scanInt(s, offset)
-	case 'D':
-		s.next()
-		return scanInt(s, offset)
-	case 'b':
+	case 'b', 'B':
 		s.next()
 		return scanBinInt(s, offset)
-	case 'B':
-		s.next()
-		return scanBinInt(s, offset)
-	case '_':
+	case '_', 'o', 'O':
 		s.next()
 		return scanOctInt(s, offset)
-	case 'o':
-		s.next()
-		return scanOctInt(s, offset)
-	case 'O':
-		s.next()
-		return scanOctInt(s, offset)
-	case 'x':
-		s.next()
-		return scanHexInt(s, offset)
-	case 'X':
+	case 'x', 'X':
 		s.next()
 		return scanHexInt(s, offset)
 	}
