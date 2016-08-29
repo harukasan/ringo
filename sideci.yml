@@ -1,4 +1,4 @@
 linter:
   gometalinter:
     options:
-      dupl-threshold: 30
+      dupl-threshold: 100
