@@ -1,0 +1,4 @@
+linter:
+  gometalinter:
+    options:
+      dupl-threshold: 30
