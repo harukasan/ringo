@@ -14,6 +14,8 @@ type Scanner struct {
 	offset int
 	err    error
 	char   byte
+
+	lastScan token.Token
 }
 
 // New returns a initiazlied scanner to scan script source src.
@@ -51,21 +53,28 @@ StartScan:
 	ch := s.char
 	switch {
 	case token.IsLetter(ch):
-		return s.scanIdent()
+		pos, t, literal = s.scanIdent()
+		s.lastScan = t
+		return
 	case token.IsWhiteSpace(ch):
+		s.lastScan = token.None
 		s.skipWhiteSpace()
 		goto StartScan
 	}
 	if s.err == io.EOF {
-		return s.offset, token.EOF, nil
+		pos, t, literal = s.offset, token.EOF, nil
+		s.lastScan = t
+		return
 	}
 	s.next()
 	if scan := tokenScanners[ch]; scan != nil {
-		off, tk, lit := scan(s)
-		if tk == token.Continue {
+		pos, t, literal = scan(s)
+		pos--
+		if t == token.Continue {
 			goto StartScan
 		}
-		return off - 1, tk, lit
+		s.lastScan = t
+		return pos, t, literal
 	}
 	return s.offset, token.Illegal, nil
 }
@@ -96,6 +105,16 @@ var tokenScanners = [127]scanFunc{
 	'+':  scanPlus,
 	'-':  scanMinus,
 	'/':  scanDiv,
+	'0':  func(s *Scanner) (int, token.Token, []byte) { return scanZero(s, s.offset) },
+	'1':  func(s *Scanner) (int, token.Token, []byte) { return scanNonZero(s, s.offset) },
+	'2':  func(s *Scanner) (int, token.Token, []byte) { return scanNonZero(s, s.offset) },
+	'3':  func(s *Scanner) (int, token.Token, []byte) { return scanNonZero(s, s.offset) },
+	'4':  func(s *Scanner) (int, token.Token, []byte) { return scanNonZero(s, s.offset) },
+	'5':  func(s *Scanner) (int, token.Token, []byte) { return scanNonZero(s, s.offset) },
+	'6':  func(s *Scanner) (int, token.Token, []byte) { return scanNonZero(s, s.offset) },
+	'7':  func(s *Scanner) (int, token.Token, []byte) { return scanNonZero(s, s.offset) },
+	'8':  func(s *Scanner) (int, token.Token, []byte) { return scanNonZero(s, s.offset) },
+	'9':  func(s *Scanner) (int, token.Token, []byte) { return scanNonZero(s, s.offset) },
 	'<':  scanLt,
 	'=':  scanEq,
 	'>':  scanGt,
@@ -187,6 +206,15 @@ func scanPlus(s *Scanner) (int, token.Token, []byte) {
 		s.next()
 		return offset, token.AssignPlus, nil
 	}
+	if s.lastScan != token.IDENT {
+		if '0' <= ch && ch <= '9' {
+			s.next()
+			if ch == '0' {
+				return scanZero(s, offset)
+			}
+			return scanNonZero(s, offset)
+		}
+	}
 	return offset, token.Plus, nil
 }
 
@@ -201,6 +229,15 @@ func scanMinus(s *Scanner) (int, token.Token, []byte) {
 		s.next()
 		return offset, token.AssignMinus, nil
 	}
+	if s.lastScan != token.IDENT {
+		if '0' <= ch && ch <= '9' {
+			s.next()
+			if ch == '0' {
+				return scanZero(s, offset)
+			}
+			return scanNonZero(s, offset)
+		}
+	}
 	return offset, token.Minus, nil
 }
 
@@ -211,6 +248,81 @@ func scanDiv(s *Scanner) (int, token.Token, []byte) {
 		return offset, token.AssignDiv, nil
 	}
 	return offset, token.Div, nil
+}
+
+func scanZero(s *Scanner, offset int) (int, token.Token, []byte) {
+	ch := s.char
+	switch ch {
+	case '.':
+		s.next()
+		return scanFloatDecimal(s, offset)
+	case 'd', 'D':
+		s.next()
+		return scanInt(s, offset)
+	case 'b', 'B':
+		s.next()
+		return scanBinInt(s, offset)
+	case '_', 'o', 'O':
+		s.next()
+		return scanOctInt(s, offset)
+	case 'x', 'X':
+		s.next()
+		return scanHexInt(s, offset)
+	}
+	return offset, token.DecimalInteger, s.src[offset-1 : offset]
+}
+
+func scanBinInt(s *Scanner, offset int) (int, token.Token, []byte) {
+	for s.char == '0' || s.char == '1' || s.char == '_' {
+		s.next()
+	}
+	return offset, token.BinaryInteger, s.src[offset-1 : s.offset]
+}
+
+func scanOctInt(s *Scanner, offset int) (int, token.Token, []byte) {
+	for token.IsOctadecimal(s.char) || s.char == '_' {
+		s.next()
+	}
+	return offset, token.OctadecimalInteger, s.src[offset-1 : s.offset]
+}
+
+func scanHexInt(s *Scanner, offset int) (int, token.Token, []byte) {
+	for token.IsHexadecimal(s.char) || s.char == '_' {
+		s.next()
+	}
+	return offset, token.HexadecimalInteger, s.src[offset-1 : s.offset]
+}
+
+func scanInt(s *Scanner, offset int) (int, token.Token, []byte) {
+	for token.IsDecimal(s.char) || s.char == '_' {
+		debug.Printf("offset=%v", s.offset)
+		s.next()
+	}
+	return offset, token.DecimalInteger, s.src[offset-1 : s.offset]
+}
+
+func scanNonZero(s *Scanner, offset int) (int, token.Token, []byte) {
+	for token.IsDecimal(s.char) || s.char == '_' {
+		s.next()
+	}
+	if s.char == '.' {
+		s.next()
+		return scanFloatDecimal(s, offset)
+	}
+	return offset, token.DecimalInteger, s.src[offset-1 : s.offset]
+}
+
+func scanFloatDecimal(s *Scanner, offset int) (int, token.Token, []byte) {
+	for token.IsDecimal(s.char) || s.char == '_' {
+		s.next()
+	}
+	if s.char == 'e' || s.char == 'E' {
+		s.next()
+		for token.IsDecimal(s.char) || s.char == '_' {
+			s.next()
+		}
+	}
+	return offset, token.Float, s.src[offset-1 : s.offset]
 }
 
 func scanLt(s *Scanner) (int, token.Token, []byte) {

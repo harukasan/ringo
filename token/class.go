@@ -25,3 +25,19 @@ func IsLowercase(c byte) bool {
 func IsDecimal(c byte) bool {
 	return '0' <= c && c <= '9'
 }
+
+// IsNonZeroDecimal returns wheter the character is a decimal number without
+// zero.
+func IsNonZeroDecimal(c byte) bool {
+	return '1' <= c && c <= '9'
+}
+
+// IsOctadecimal returns wheter the character is a hexadecimal number.
+func IsOctadecimal(c byte) bool {
+	return '0' <= c && c <= '7'
+}
+
+// IsHexadecimal returns wheter the character is a hexadecimal number.
+func IsHexadecimal(c byte) bool {
+	return IsDecimal(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
+}
