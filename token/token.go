@@ -20,6 +20,7 @@ const (
 	DecimalInteger
 	OctadecimalInteger
 	HexadecimalInteger
+	Float
 
 	// operators
 	Not         // !

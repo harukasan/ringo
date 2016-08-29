@@ -202,6 +202,21 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	"0X1234567890abcdef": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.HexadecimalInteger, []byte("0X1234567890abcdef"))
 	},
+	"0.1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.Float, []byte("0.1"))
+	},
+	"+0.1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.Float, []byte("+0.1"))
+	},
+	"-0.1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.Float, []byte("-0.1"))
+	},
+	"123.0456789e10": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.Float, []byte("123.0456789e10"))
+	},
+	"123.0456789E10": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.Float, []byte("123.0456789E10"))
+	},
 	"x+1": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.IDENT, []byte("x"))
 		assertScan(t, s, 1, token.Plus, nil)
