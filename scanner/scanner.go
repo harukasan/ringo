@@ -97,9 +97,11 @@ type scanFunc func(s *Scanner) (token.Token, []byte)
 var tokenScanners = [127]scanFunc{
 	'\n': scanOne(token.NewLine),
 	'!':  scanNot,
+	'"':  scanDoubleQuoteString,
 	'#':  scanComment,
 	'%':  scanMod,
 	'&':  scanAnd,
+	'\'': scanSingleQuoteString,
 	'(':  scanOne(token.LParen),
 	')':  scanOne(token.RParen),
 	'*':  scanAsterisk,
@@ -152,6 +154,14 @@ func scanComment(s *Scanner) (token.Token, []byte) {
 	return token.Continue, nil
 }
 
+func scanDoubleQuoteString(s *Scanner) (token.Token, []byte) {
+	for s.char != '"' && s.err == nil {
+		s.next()
+	}
+	s.next()
+	return token.StringPart, s.src[s.begin:s.offset]
+}
+
 func scanMod(s *Scanner) (token.Token, []byte) {
 	if s.char == '=' { // %=
 		s.next()
@@ -174,6 +184,17 @@ func scanAnd(s *Scanner) (token.Token, []byte) {
 		return token.AssignAnd, nil
 	}
 	return token.Amp, nil
+}
+
+func scanSingleQuoteString(s *Scanner) (token.Token, []byte) {
+	for s.char != '\'' && s.err == nil {
+		if s.char == '\\' {
+			s.next()
+		}
+		s.next()
+	}
+	s.next()
+	return token.StringPart, s.src[s.begin:s.offset]
 }
 
 func scanAsterisk(s *Scanner) (token.Token, []byte) {

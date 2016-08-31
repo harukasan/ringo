@@ -21,6 +21,7 @@ const (
 	OctadecimalInteger
 	HexadecimalInteger
 	Float
+	StringPart
 
 	// operators
 	Not         // !

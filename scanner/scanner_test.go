@@ -130,6 +130,9 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	},
 
 	// string literals:
+	`'a'`:      assertScanToken(0, token.StringPart, []byte(`'a'`)),
+	`'\''`:     assertScanToken(0, token.StringPart, []byte(`'\''`)),
+	`'\a\\\''`: assertScanToken(0, token.StringPart, []byte(`'\a\\\''`)),
 
 	// ident
 	"a": func(t *testing.T, s *Scanner) {
