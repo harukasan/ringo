@@ -13,10 +13,10 @@ type Scanner struct {
 	src []byte // source buffer
 	err error  //
 
-	char     byte        // current read character
-	offset   int         // current offset
-	begin    int         // offset of begin of the token
-	lastScan token.Token // last read token
+	char    byte // current read character
+	offset  int  // current offset
+	begin   int  // offset of begin of the token
+	nospace bool // whether the previous is not a space
 }
 
 // New returns a initiazlied scanner to scan script source src.
@@ -55,16 +55,11 @@ StartScan:
 	switch {
 	case token.IsLetter(ch):
 		pos, t, literal = s.scanIdent()
-		s.lastScan = t
+		s.nospace = true
 		return
-	case token.IsWhiteSpace(ch):
-		s.lastScan = token.None
-		s.skipWhiteSpace()
-		goto StartScan
 	}
 	if s.err == io.EOF {
 		pos, t, literal = s.offset, token.EOF, nil
-		s.lastScan = t
 		return
 	}
 	s.begin = s.offset
@@ -74,7 +69,7 @@ StartScan:
 		if t == token.Continue {
 			goto StartScan
 		}
-		s.lastScan = t
+		s.nospace = true
 		return s.begin, t, literal
 	}
 	return s.offset, token.Illegal, nil
@@ -95,8 +90,13 @@ func (s *Scanner) skipLine() {
 type scanFunc func(s *Scanner) (token.Token, []byte)
 
 var tokenScanners = [127]scanFunc{
+	0x09: skipWhiteSpaces,
 	'\n': scanOne(token.NewLine),
+	0x0b: skipWhiteSpaces,
+	0x0c: skipWhiteSpaces,
+	0x0d: skipWhiteSpaces,
 	'!':  scanNot,
+	' ':  skipWhiteSpaces,
 	'"':  scanDoubleQuoteString,
 	'#':  scanComment,
 	'%':  scanMod,
@@ -134,6 +134,14 @@ func scanOne(tk token.Token) scanFunc {
 	return func(s *Scanner) (token.Token, []byte) {
 		return tk, nil
 	}
+}
+
+func skipWhiteSpaces(s *Scanner) (token.Token, []byte) {
+	s.nospace = false
+	for token.IsWhiteSpace(s.char) {
+		s.next()
+	}
+	return token.Continue, nil
 }
 
 func scanNot(s *Scanner) (token.Token, []byte) {
@@ -223,7 +231,7 @@ func scanPlus(s *Scanner) (token.Token, []byte) {
 		s.next()
 		return token.AssignPlus, nil
 	}
-	if s.lastScan != token.IDENT {
+	if !s.nospace {
 		if '0' <= ch && ch <= '9' {
 			s.next()
 			if ch == '0' {
@@ -245,7 +253,7 @@ func scanMinus(s *Scanner) (token.Token, []byte) {
 		s.next()
 		return token.AssignMinus, nil
 	}
-	if s.lastScan != token.IDENT {
+	if !s.nospace {
 		if '0' <= ch && ch <= '9' {
 			s.next()
 			if ch == '0' {
