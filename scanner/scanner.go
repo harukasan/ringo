@@ -24,8 +24,6 @@ type Scanner struct {
 type scannerCtx struct {
 	nospace   bool          // whether the previous is not a space
 	stateScan stateScanFunc // scanner func for the special state
-
-	prev *scannerCtx
 }
 
 // scanning function for special state
