@@ -69,7 +69,9 @@ StartScan:
 		if t == token.Continue {
 			goto StartScan
 		}
-		s.nospace = true
+		if t != token.NewLine {
+			s.nospace = true
+		}
 		return s.begin, t, literal
 	}
 	return s.offset, token.Illegal, nil
@@ -91,7 +93,7 @@ type scanFunc func(s *Scanner) (token.Token, []byte)
 
 var tokenScanners = [127]scanFunc{
 	0x09: skipWhiteSpaces,
-	'\n': scanOne(token.NewLine),
+	'\n': scanNewLine,
 	0x0b: skipWhiteSpaces,
 	0x0c: skipWhiteSpaces,
 	0x0d: skipWhiteSpaces,
@@ -142,6 +144,11 @@ func skipWhiteSpaces(s *Scanner) (token.Token, []byte) {
 		s.next()
 	}
 	return token.Continue, nil
+}
+
+func scanNewLine(s *Scanner) (token.Token, []byte) {
+	s.nospace = false
+	return token.NewLine, nil
 }
 
 func scanNot(s *Scanner) (token.Token, []byte) {

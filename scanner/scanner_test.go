@@ -110,6 +110,11 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	"-0.1":               assertScanToken(0, token.Float, []byte("-0.1")),
 	"123.0456789e10":     assertScanToken(0, token.Float, []byte("123.0456789e10")),
 	"123.0456789E10":     assertScanToken(0, token.Float, []byte("123.0456789E10")),
+	"+1\n-1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("+1"))
+		assertScan(t, s, 2, token.NewLine, nil)
+		assertScan(t, s, 3, token.DecimalInteger, []byte("-1"))
+	},
 	"x+1": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.IDENT, []byte("x"))
 		assertScan(t, s, 1, token.Plus, nil)
