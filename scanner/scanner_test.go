@@ -17,8 +17,8 @@ func assertScanToken(offset int, token token.Token, literal []byte) func(t *test
 func assertScan(t *testing.T, s *Scanner, pos int, token token.Token, literal []byte) bool {
 	gp, gt, gl := s.Scan()
 	if gp != pos || gt != token || !bytes.Equal(gl, literal) {
-		debug.Printf("assert: pos=%v (want=%v), token=%v (want=%v), literal=%v (want=%v)", gp, pos, gt, token, gl, literal)
-		t.Errorf("scan: pos=%v (want=%v), token=%v (want=%v), literal=%v (want=%v)", gp, pos, gt, token, gl, literal)
+		debug.Printf("assert: src=%v pos=%v (want=%v), token=%v (want=%v), literal=%v (want=%v)", string(s.src), gp, pos, gt, token, gl, literal)
+		t.Errorf("scan: src=%v pos=%v (want=%v), token=%v (want=%v), literal=%v (want=%v)", string(s.src), gp, pos, gt, token, gl, literal)
 		return true
 	}
 	return false
