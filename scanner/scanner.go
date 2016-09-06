@@ -563,9 +563,3 @@ func (s *Scanner) scanIdent() (int, token.Token, []byte) {
 
 	return begin, token.IDENT, s.src[begin:s.offset]
 }
-
-func (s *Scanner) skipWhiteSpace() {
-	for token.IsWhiteSpace(s.char) {
-		s.next()
-	}
-}
