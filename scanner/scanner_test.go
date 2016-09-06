@@ -74,6 +74,17 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	"[]":  assertScanToken(0, token.ElementRef, nil),
 	"[]=": assertScanToken(0, token.ElementSet, nil),
 
+	"1 << 1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("1"))
+		assertScan(t, s, 2, token.LShift, nil)
+		assertScan(t, s, 5, token.DecimalInteger, []byte("1"))
+	},
+	"1<<1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("1"))
+		assertScan(t, s, 1, token.LShift, nil)
+		assertScan(t, s, 3, token.DecimalInteger, []byte("1"))
+	},
+
 	// assign operators
 	"=":   assertScanToken(0, token.Assign, nil),
 	"&&=": assertScanToken(0, token.AssignAndOperator, nil),
@@ -138,6 +149,27 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	`'a'`:      assertScanToken(0, token.StringPart, []byte(`'a'`)),
 	`'\''`:     assertScanToken(0, token.StringPart, []byte(`'\''`)),
 	`'\a\\\''`: assertScanToken(0, token.StringPart, []byte(`'\a\\\''`)),
+
+	// heredoc
+	"<<TEXT\nabc\n\nTEXT\n": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.HeredocBegin, []byte("<<TEXT"))
+		assertScan(t, s, 6, token.NewLine, nil)
+		assertScan(t, s, 7, token.HeredocPart, []byte("abc\n\n"))
+		assertScan(t, s, 16, token.NewLine, nil)
+	},
+	"<<-TEXT\n  TEXT\n": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.HeredocBegin, []byte("<<-TEXT"))
+		assertScan(t, s, 7, token.NewLine, nil)
+		assertScan(t, s, 8, token.HeredocPart, nil)
+		assertScan(t, s, 14, token.NewLine, nil)
+	},
+	"1 <<1\n1\n": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("1"))
+		assertScan(t, s, 2, token.HeredocBegin, []byte("<<1"))
+		assertScan(t, s, 5, token.NewLine, nil)
+		assertScan(t, s, 6, token.HeredocPart, nil)
+		assertScan(t, s, 7, token.NewLine, nil)
+	},
 
 	// ident
 	"a": func(t *testing.T, s *Scanner) {

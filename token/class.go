@@ -41,3 +41,7 @@ func IsOctadecimal(c byte) bool {
 func IsHexadecimal(c byte) bool {
 	return IsDecimal(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
 }
+
+func IsIdent(c byte) bool {
+	return IsLetter(c) || IsDecimal(c) || c == '_'
+}

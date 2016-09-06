@@ -1,6 +1,7 @@
 package scanner
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 
@@ -13,17 +14,30 @@ type Scanner struct {
 	src []byte // source buffer
 	err error  //
 
-	char    byte // current read character
-	offset  int  // current offset
-	begin   int  // offset of begin of the token
-	nospace bool // whether the previous is not a space
+	char   byte // current read character
+	offset int  // current offset
+	begin  int  // offset of begin of the token
+
+	ctx *scannerCtx // scanner context
 }
+
+type scannerCtx struct {
+	nospace   bool          // whether the previous is not a space
+	stateScan stateScanFunc // scanner func for the special state
+
+	prev *scannerCtx
+}
+
+// scanning function for special state
+type stateScanFunc func(s *Scanner) (pos int, t token.Token, literal []byte)
 
 // New returns a initiazlied scanner to scan script source src.
 func New(src []byte) *Scanner {
-	s := new(Scanner)
-	s.src = src
-	s.offset = -1
+	s := &Scanner{
+		src:    src,
+		offset: -1,
+		ctx:    &scannerCtx{},
+	}
 	s.next()
 	return s
 }
@@ -51,11 +65,19 @@ func (s *Scanner) failf(format string, v ...interface{}) {
 // Scan reads and returns a parsed token position, type, and its literal.
 func (s *Scanner) Scan() (pos int, t token.Token, literal []byte) {
 StartScan:
+	if s.ctx.stateScan != nil {
+		pos, t, literal = s.ctx.stateScan(s)
+		if t != token.Continue {
+			return
+		}
+		// fallback to default scan if token.Continue is return
+	}
+
 	ch := s.char
 	switch {
 	case token.IsLetter(ch):
 		pos, t, literal = s.scanIdent()
-		s.nospace = true
+		s.ctx.nospace = true
 		return
 	}
 	if s.err == io.EOF {
@@ -70,7 +92,7 @@ StartScan:
 			goto StartScan
 		}
 		if t != token.NewLine {
-			s.nospace = true
+			s.ctx.nospace = true
 		}
 		return s.begin, t, literal
 	}
@@ -139,7 +161,7 @@ func scanOne(tk token.Token) scanFunc {
 }
 
 func skipWhiteSpaces(s *Scanner) (token.Token, []byte) {
-	s.nospace = false
+	s.ctx.nospace = false
 	for token.IsWhiteSpace(s.char) {
 		s.next()
 	}
@@ -147,7 +169,7 @@ func skipWhiteSpaces(s *Scanner) (token.Token, []byte) {
 }
 
 func scanNewLine(s *Scanner) (token.Token, []byte) {
-	s.nospace = false
+	s.ctx.nospace = false
 	return token.NewLine, nil
 }
 
@@ -238,7 +260,7 @@ func scanPlus(s *Scanner) (token.Token, []byte) {
 		s.next()
 		return token.AssignPlus, nil
 	}
-	if !s.nospace {
+	if !s.ctx.nospace {
 		if '0' <= ch && ch <= '9' {
 			s.next()
 			if ch == '0' {
@@ -260,7 +282,7 @@ func scanMinus(s *Scanner) (token.Token, []byte) {
 		s.next()
 		return token.AssignMinus, nil
 	}
-	if !s.nospace {
+	if !s.ctx.nospace {
 		if '0' <= ch && ch <= '9' {
 			s.next()
 			if ch == '0' {
@@ -366,13 +388,97 @@ func scanLt(s *Scanner) (token.Token, []byte) {
 		return token.LtEq, nil
 	case '<': // <<
 		s.next()
-		if s.char == '=' { // <<=
+		switch s.char {
+		case '=': // <<=
 			s.next()
 			return token.AssignLShift, nil
+		case '-': // <<-
+			t, l := scanHeredocBegin(s)
+			if t != token.Continue {
+				return t, l
+			}
+		default:
+			t, l := scanHeredocBegin(s)
+			if t != token.Continue {
+				return t, l
+			}
 		}
 		return token.LShift, nil
 	}
 	return token.Lt, nil
+}
+
+func scanHeredocBegin(s *Scanner) (token.Token, []byte) {
+	indent := false
+	termBegin := s.offset
+	switch c := s.char; {
+	case token.IsLetter(c) || c == '_':
+		s.next()
+	case token.IsDecimal(c):
+		if s.ctx.nospace {
+			return token.Continue, nil
+		}
+		s.next()
+	case c == '-':
+		if s.ctx.nospace {
+			return token.Continue, nil
+		}
+		indent = true
+		s.next()
+		termBegin = s.offset
+	default:
+		return token.Continue, nil
+	}
+	for token.IsIdent(s.char) {
+		s.next()
+	}
+	term := s.src[termBegin:s.offset]
+	s.ctx.stateScan = stateHeredocFirstLine(term, indent)
+	return token.HeredocBegin, s.src[s.begin:s.offset]
+}
+
+func stateHeredocFirstLine(term []byte, indent bool) stateScanFunc {
+	return func(s *Scanner) (int, token.Token, []byte) {
+		if s.char == '\n' {
+			begin := s.offset
+			s.next()
+			s.ctx.stateScan = stateInHeredoc(term, indent)
+			t, literal := scanNewLine(s)
+			return begin, t, literal
+		}
+		return 0, token.Continue, nil
+	}
+}
+
+func stateInHeredoc(term []byte, indent bool) stateScanFunc {
+	return func(s *Scanner) (int, token.Token, []byte) {
+		begin := s.offset
+		bol := true // begin of the line
+		for {
+			if bol {
+				lbegin := s.offset
+				if indent {
+					for token.IsWhiteSpace(s.char) {
+						s.next()
+					}
+				}
+				if bytes.HasPrefix(s.src[s.offset:], term) {
+					for i := 0; i < len(term); i++ {
+						s.next()
+					}
+					if s.char == '\n' || s.err == io.EOF {
+						s.ctx.stateScan = nil
+						return begin, token.HeredocPart, s.src[begin:lbegin]
+					}
+				}
+			}
+			if s.err != nil {
+				return begin, token.Illegal, s.src[begin:]
+			}
+			bol = (s.char == '\n')
+			s.next()
+		}
+	}
 }
 
 func scanEq(s *Scanner) (token.Token, []byte) {

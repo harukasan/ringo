@@ -22,6 +22,8 @@ const (
 	HexadecimalInteger
 	Float
 	StringPart
+	HeredocBegin
+	HeredocPart
 
 	// operators
 	Not         // !
