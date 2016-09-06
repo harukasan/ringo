@@ -17,8 +17,8 @@ func assertScanToken(offset int, token token.Token, literal []byte) func(t *test
 func assertScan(t *testing.T, s *Scanner, pos int, token token.Token, literal []byte) bool {
 	gp, gt, gl := s.Scan()
 	if gp != pos || gt != token || !bytes.Equal(gl, literal) {
-		debug.Printf("assert: pos=%v (want=%v), token=%v (want=%v), literal=%v (want=%v)", gp, pos, gt, token, gl, literal)
-		t.Errorf("scan: pos=%v (want=%v), token=%v (want=%v), literal=%v (want=%v)", gp, pos, gt, token, gl, literal)
+		debug.Printf("assert: src=%v pos=%v (want=%v), token=%v (want=%v), literal=%v (want=%v)", string(s.src), gp, pos, gt, token, gl, literal)
+		t.Errorf("scan: src=%v pos=%v (want=%v), token=%v (want=%v), literal=%v (want=%v)", string(s.src), gp, pos, gt, token, gl, literal)
 		return true
 	}
 	return false
@@ -74,6 +74,17 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	"[]":  assertScanToken(0, token.ElementRef, nil),
 	"[]=": assertScanToken(0, token.ElementSet, nil),
 
+	"1 << 1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("1"))
+		assertScan(t, s, 2, token.LShift, nil)
+		assertScan(t, s, 5, token.DecimalInteger, []byte("1"))
+	},
+	"1<<1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("1"))
+		assertScan(t, s, 1, token.LShift, nil)
+		assertScan(t, s, 3, token.DecimalInteger, []byte("1"))
+	},
+
 	// assign operators
 	"=":   assertScanToken(0, token.Assign, nil),
 	"&&=": assertScanToken(0, token.AssignAndOperator, nil),
@@ -110,6 +121,11 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	"-0.1":               assertScanToken(0, token.Float, []byte("-0.1")),
 	"123.0456789e10":     assertScanToken(0, token.Float, []byte("123.0456789e10")),
 	"123.0456789E10":     assertScanToken(0, token.Float, []byte("123.0456789E10")),
+	"+1\n-1": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("+1"))
+		assertScan(t, s, 2, token.NewLine, nil)
+		assertScan(t, s, 3, token.DecimalInteger, []byte("-1"))
+	},
 	"x+1": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.IDENT, []byte("x"))
 		assertScan(t, s, 1, token.Plus, nil)
@@ -130,6 +146,30 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	},
 
 	// string literals:
+	`'a'`:      assertScanToken(0, token.StringPart, []byte(`'a'`)),
+	`'\''`:     assertScanToken(0, token.StringPart, []byte(`'\''`)),
+	`'\a\\\''`: assertScanToken(0, token.StringPart, []byte(`'\a\\\''`)),
+
+	// heredoc
+	"<<TEXT\nabc\n\nTEXT\n": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.HeredocBegin, []byte("<<TEXT"))
+		assertScan(t, s, 6, token.NewLine, nil)
+		assertScan(t, s, 7, token.HeredocPart, []byte("abc\n\n"))
+		assertScan(t, s, 16, token.NewLine, nil)
+	},
+	"<<-TEXT\n  TEXT\n": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.HeredocBegin, []byte("<<-TEXT"))
+		assertScan(t, s, 7, token.NewLine, nil)
+		assertScan(t, s, 8, token.HeredocPart, nil)
+		assertScan(t, s, 14, token.NewLine, nil)
+	},
+	"1 <<1\n1\n": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.DecimalInteger, []byte("1"))
+		assertScan(t, s, 2, token.HeredocBegin, []byte("<<1"))
+		assertScan(t, s, 5, token.NewLine, nil)
+		assertScan(t, s, 6, token.HeredocPart, nil)
+		assertScan(t, s, 7, token.NewLine, nil)
+	},
 
 	// ident
 	"a": func(t *testing.T, s *Scanner) {

@@ -41,3 +41,10 @@ func IsOctadecimal(c byte) bool {
 func IsHexadecimal(c byte) bool {
 	return IsDecimal(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
 }
+
+// IsIdent returns whther the character can consists identifier tokens.
+// Note that it returns true for the number, but the identifier must begin with
+// a letter or an underscore.
+func IsIdent(c byte) bool {
+	return IsLetter(c) || IsDecimal(c) || c == '_'
+}
