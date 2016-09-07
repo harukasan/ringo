@@ -8,3 +8,4 @@ install:
   - make get-deps
 script:
   - make test
+  - make coveralls
