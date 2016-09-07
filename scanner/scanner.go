@@ -128,7 +128,9 @@ var tokenScanners = [127]scanFunc{
 	')':  scanOne(token.RParen),
 	'*':  scanAsterisk,
 	'+':  scanPlus,
+	',':  scanOne(token.Comma),
 	'-':  scanMinus,
+	'.':  scanDot,
 	'/':  scanDiv,
 	'0':  scanZero,
 	'1':  scanNonZero,
@@ -140,9 +142,11 @@ var tokenScanners = [127]scanFunc{
 	'7':  scanNonZero,
 	'8':  scanNonZero,
 	'9':  scanNonZero,
+	':':  scanColon,
 	'<':  scanLt,
 	'=':  scanEq,
 	'>':  scanGt,
+	'?':  scanOne(token.Question),
 	'[':  scanBracket,
 	']':  scanOne(token.RBracket),
 	'^':  scanXor,
@@ -292,6 +296,17 @@ func scanMinus(s *Scanner) (token.Token, []byte) {
 	return token.Minus, nil
 }
 
+func scanDot(s *Scanner) (token.Token, []byte) {
+	if s.char == '.' {
+		s.next()
+		if s.char == '.' {
+			return token.Dot3, nil
+		}
+		return token.Dot2, nil
+	}
+	return token.Dot, nil
+}
+
 func scanDiv(s *Scanner) (token.Token, []byte) {
 	if s.char == '=' { // /=
 		s.next()
@@ -372,6 +387,14 @@ func scanFloatDecimal(s *Scanner) (token.Token, []byte) {
 		}
 	}
 	return token.Float, s.src[s.begin:s.offset]
+}
+
+func scanColon(s *Scanner) (token.Token, []byte) {
+	if s.char == ':' {
+		s.next()
+		return token.Colon2, nil
+	}
+	return token.Colon, nil
 }
 
 func scanLt(s *Scanner) (token.Token, []byte) {
@@ -489,6 +512,9 @@ func scanEq(s *Scanner) (token.Token, []byte) {
 			return token.Eql, nil
 		}
 		return token.Eq, nil
+	case '>': // =>
+		s.next()
+		return token.Arrow, nil
 	case '~': // =~
 		s.next()
 		return token.Match, nil

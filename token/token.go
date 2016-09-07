@@ -25,6 +25,25 @@ const (
 	HeredocBegin
 	HeredocPart
 
+	// brackets:
+	LParen   // (
+	RParen   // )
+	LBracket // [
+	RBracket // ]
+	LBrace   // {
+	RBrace   // }
+
+	// delimiters
+	Colon2    // ::
+	Comma     // ,
+	Semicolon // ;
+	Dot       // .
+	Dot2      // ..
+	Dot3      // ...
+	Question  // ?
+	Colon     // :
+	Arrow     // =>
+
 	// operators
 	Not         // !
 	NotEqual    // !=
@@ -73,14 +92,6 @@ const (
 	AssignDiv         // /=
 	AssignMod         // %=
 	AssignPow         // **=
-
-	// brackets:
-	LParen   // (
-	RParen   // )
-	LBracket // [
-	RBracket // ]
-	LBrace   // {
-	RBrace   // }
 
 	// keywords:
 	KeywordLINE     // __LINE__
