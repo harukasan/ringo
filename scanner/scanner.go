@@ -72,9 +72,11 @@ StartScan:
 	}
 
 	ch := s.char
+	s.begin = s.offset
 	switch {
-	case token.IsLetter(ch):
-		pos, t, literal = s.scanIdent()
+	case token.IsLetter(ch) || ch == '_':
+		pos = s.begin
+		t, literal = scanIdent(s)
 		s.ctx.nospace = true
 		return
 	}
@@ -82,7 +84,6 @@ StartScan:
 		pos, t, literal = s.offset, token.EOF, nil
 		return
 	}
-	s.begin = s.offset
 	s.next()
 	if scan := tokenScanners[ch]; scan != nil {
 		t, literal = scan(s)
@@ -575,15 +576,13 @@ func scanOr(s *Scanner) (token.Token, []byte) {
 	return token.Or, nil
 }
 
-////////
-
-func (s *Scanner) scanIdent() (int, token.Token, []byte) {
-	begin := s.offset
-	ch := s.char
-	for token.IsLetter(ch) || token.IsDecimal(ch) {
+func scanIdent(s *Scanner) (token.Token, []byte) {
+	for token.IsIdent(s.char) || s.char == '?' {
 		s.next()
-		ch = s.char
 	}
-
-	return begin, token.IDENT, s.src[begin:s.offset]
+	literal := s.src[s.begin:s.offset]
+	if t := token.KeywordToken(literal); t != token.None {
+		return t, nil
+	}
+	return token.IDENT, literal
 }
