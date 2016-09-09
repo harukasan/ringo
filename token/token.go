@@ -312,5 +312,5 @@ func KeywordToken(literal []byte) Token {
 			}
 		}
 	}
-	return IDENT
+	return None
 }
