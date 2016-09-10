@@ -63,6 +63,11 @@ func (s *Scanner) failf(format string, v ...interface{}) {
 // Scan reads and returns a parsed token position, type, and its literal.
 func (s *Scanner) Scan() (pos int, t token.Token, literal []byte) {
 StartScan:
+	if s.err == io.EOF {
+		pos, t, literal = s.offset, token.EOF, nil
+		return
+	}
+
 	if s.ctx.stateScan != nil {
 		pos, t, literal = s.ctx.stateScan(s)
 		if t != token.Continue {
@@ -71,21 +76,9 @@ StartScan:
 		// fallback to default scan if token.Continue is return
 	}
 
-	ch := s.char
 	s.begin = s.offset
-	switch {
-	case token.IsLetter(ch) || ch == '_':
-		pos = s.begin
-		t, literal = scanIdent(s)
-		s.ctx.nospace = true
-		return
-	}
-	if s.err == io.EOF {
-		pos, t, literal = s.offset, token.EOF, nil
-		return
-	}
-	s.next()
-	if scan := tokenScanners[ch]; scan != nil {
+	if scan := scanners[s.char]; scan != nil {
+		s.next()
 		t, literal = scan(s)
 		if t == token.Continue {
 			goto StartScan
@@ -110,9 +103,14 @@ func (s *Scanner) skipLine() {
 	}
 }
 
+// scanFunc implements a scanner that returns a token type and its literal.
 type scanFunc func(s *Scanner) (token.Token, []byte)
 
-var tokenScanners = [127]scanFunc{
+/*
+The scanner for speicfic token is picked up by the first letter of literal of
+token. Note that the scanner for 0-9, A-Z and a-z is set by below init func.
+*/
+var scanners = [127]scanFunc{
 	0x09: skipWhiteSpaces,
 	'\n': scanNewLine,
 	0x0b: skipWhiteSpaces,
@@ -133,16 +131,6 @@ var tokenScanners = [127]scanFunc{
 	'-':  scanMinus,
 	'.':  scanDot,
 	'/':  scanDiv,
-	'0':  scanZero,
-	'1':  scanNonZero,
-	'2':  scanNonZero,
-	'3':  scanNonZero,
-	'4':  scanNonZero,
-	'5':  scanNonZero,
-	'6':  scanNonZero,
-	'7':  scanNonZero,
-	'8':  scanNonZero,
-	'9':  scanNonZero,
 	':':  scanColon,
 	'<':  scanLt,
 	'=':  scanEq,
@@ -151,10 +139,25 @@ var tokenScanners = [127]scanFunc{
 	'[':  scanBracket,
 	']':  scanOne(token.RBracket),
 	'^':  scanXor,
+	'_':  scanIdent,
 	'{':  scanOne(token.LBrace),
 	'|':  scanOr,
 	'}':  scanOne(token.RBrace),
 	'~':  scanOne(token.Invert),
+}
+
+/* set scanners for 0-9, A-Z, and a-z. */
+func init() {
+	scanners['0'] = scanZero
+	for i := '1'; i <= '9'; i++ {
+		scanners[i] = scanNonZero
+	}
+	for i := 'A'; i <= 'Z'; i++ {
+		scanners[i] = scanIdent
+	}
+	for i := 'a'; i <= 'z'; i++ {
+		scanners[i] = scanIdent
+	}
 }
 
 func scanOne(tk token.Token) scanFunc {
