@@ -135,6 +135,11 @@ const (
 	KeywordWhen     // when
 	KeywordWhile    // while
 	KeywordYield    // yield
+
+	IdentLocalVar
+	IdentGlobalVar
+	IdentInstanceVar
+	IdentClassVar
 )
 
 var keywordLiterals = [127][][]byte{
