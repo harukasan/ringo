@@ -2,8 +2,10 @@ package token
 
 import "testing"
 
+type class int
+
 const (
-	Letter int = 1 << iota
+	Letter class = 1 << iota
 	WhiteSpace
 	Uppercase
 	Lowercase
@@ -15,7 +17,7 @@ const (
 	Ident
 )
 
-var codes = map[byte]int{
+var tests = map[byte]class{
 	0x09: WhiteSpace,
 	0x0b: WhiteSpace,
 	0x0c: WhiteSpace,
@@ -86,45 +88,25 @@ var codes = map[byte]int{
 	'z':  Letter | Lowercase | IdentStart | Ident,
 }
 
-func TestClass(t *testing.T) {
-	for c, class := range codes {
-		if v := class&Letter > 0; v != IsLetter(c) {
-			t.Errorf("IsLetter('%d') must returns %v", c, v)
-		}
-		if v := class&WhiteSpace > 0; v != IsWhiteSpace(c) {
-			t.Errorf("IsWhiteSpace('%d') must returns %v", c, v)
-		}
-		if v := class&Uppercase > 0; v != IsUppercase(c) {
-			t.Errorf("IsUppercase('%d') must returns %v", c, v)
-		}
-		if v := class&Lowercase > 0; v != IsLowercase(c) {
-			t.Errorf("IsLowercase('%d') must returns %v", c, v)
-		}
-		if v := class&Decimal > 0; v != IsDecimal(c) {
-			t.Errorf("IsDecimal('%d') must returns %v", c, v)
-		}
-		if v := class&NonZeroDecimal > 0; v != IsNonZeroDecimal(c) {
-			t.Errorf("IsNonZeroDecimal('%d') must returns %v", c, v)
-		}
-		if v := class&Octadecimal > 0; v != IsOctadecimal(c) {
-			t.Errorf("IsOctadecimal('%d') must returns %v", c, v)
-		}
-		if v := class&Hexadecimal > 0; v != IsHexadecimal(c) {
-			t.Errorf("IsHexadecimal('%d') must returns %v", c, v)
-		}
-		if v := class&IdentStart > 0; v != IsIdentStart(c) {
-			t.Errorf("IsIdentStart('%d') must returns %v", c, v)
-		}
-		if v := class&Ident > 0; v != IsIdent(c) {
-			t.Errorf("IsIdent('%d') must returns %v", c, v)
-		}
-	}
+var funcs = map[class]func(byte) bool{
+	Letter:         IsLetter,
+	WhiteSpace:     IsWhiteSpace,
+	Uppercase:      IsUppercase,
+	Lowercase:      IsLowercase,
+	Decimal:        IsDecimal,
+	NonZeroDecimal: IsNonZeroDecimal,
+	Octadecimal:    IsOctadecimal,
+	Hexadecimal:    IsHexadecimal,
+	IdentStart:     IsIdentStart,
+	Ident:          IsIdent,
 }
 
-func BenchmarkClass(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		if v := codes['a']&Letter > 0; v != IsLetter('a') {
-			b.Errorf("must returns %v", v)
+func TestClass(t *testing.T) {
+	for sbj, sbjC := range tests {
+		for fC, f := range funcs {
+			if want := sbjC&fC > 0; want != f(sbj) {
+				t.Errorf("%v: '%d' must returns %v", fC, sbj, want)
+			}
 		}
 	}
 }
