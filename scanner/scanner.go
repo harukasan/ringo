@@ -120,6 +120,7 @@ var scanners = [127]scanFunc{
 	' ':  skipWhiteSpaces,
 	'"':  scanDoubleQuoteString,
 	'#':  scanComment,
+	'$':  scanDollar,
 	'%':  scanMod,
 	'&':  scanAnd,
 	'\'': scanSingleQuoteString,
@@ -204,6 +205,17 @@ func scanDoubleQuoteString(s *Scanner) (token.Token, []byte) {
 	}
 	s.next()
 	return token.StringPart, s.src[s.begin:s.offset]
+}
+
+func scanDollar(s *Scanner) (token.Token, []byte) {
+	if !token.IsIdentStart(s.char) {
+		return token.Illegal, s.src[s.begin:s.offset]
+	}
+	s.next()
+	for token.IsIdent(s.char) {
+		s.next()
+	}
+	return token.IdentGlobalVar, s.src[s.begin:s.offset]
 }
 
 func scanMod(s *Scanner) (token.Token, []byte) {
