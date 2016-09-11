@@ -42,7 +42,12 @@ func IsHexadecimal(c byte) bool {
 	return IsDecimal(c) || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
 }
 
-// IsIdent returns whther the character can consists identifier tokens.
+// IsIdentStart returns whether the character can begin an identifier.
+func IsIdentStart(c byte) bool {
+	return IsLetter(c) || c == '_'
+}
+
+// IsIdent returns whther the character can consists an identifier.
 // Note that it returns true for the number, but the identifier must begin with
 // a letter or an underscore.
 func IsIdent(c byte) bool {

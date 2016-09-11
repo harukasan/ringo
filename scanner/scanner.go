@@ -136,6 +136,7 @@ var scanners = [127]scanFunc{
 	'=':  scanEq,
 	'>':  scanGt,
 	'?':  scanOne(token.Question),
+	'@':  scanAt,
 	'[':  scanBracket,
 	']':  scanOne(token.RBracket),
 	'^':  scanXor,
@@ -541,6 +542,22 @@ func scanGt(s *Scanner) (token.Token, []byte) {
 		return token.RShift, nil
 	}
 	return token.Gt, nil
+}
+
+func scanAt(s *Scanner) (token.Token, []byte) {
+	t := token.IdentInstanceVar
+	if s.char == '@' {
+		t = token.IdentClassVar
+		s.next()
+	}
+	if !token.IsIdentStart(s.char) {
+		return token.Illegal, s.src[s.begin:s.offset]
+	}
+	s.next()
+	for token.IsIdent(s.char) {
+		s.next()
+	}
+	return t, s.src[s.begin:s.offset]
 }
 
 func scanBracket(s *Scanner) (token.Token, []byte) {

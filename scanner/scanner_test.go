@@ -181,6 +181,9 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	},
 
 	// ident
+	"@var1":  assertScanToken(0, token.IdentInstanceVar, []byte("@var1")),
+	"@@var1": assertScanToken(0, token.IdentClassVar, []byte("@@var1")),
+
 	"a": func(t *testing.T, s *Scanner) {
 		assertScan(t, s, 0, token.IDENT, []byte("a"))
 	},
