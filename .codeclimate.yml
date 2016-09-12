@@ -6,4 +6,5 @@ ratings:
   paths:
    - "**.go"
 exclude_paths:
+   - "**_test.go"
    - "**_string.go"
