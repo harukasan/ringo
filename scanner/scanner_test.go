@@ -37,7 +37,7 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	// comment
 	" #": assertScanToken(2, token.EOF, nil),
 	"a#b": func(t *testing.T, s *Scanner) {
-		assertScan(t, s, 0, token.IDENT, []byte("a"))
+		assertScan(t, s, 0, token.IdentLocalVar, []byte("a"))
 		assertScan(t, s, 3, token.EOF, nil)
 	},
 
@@ -136,21 +136,21 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 		assertScan(t, s, 3, token.DecimalInteger, []byte("-1"))
 	},
 	"x+1": func(t *testing.T, s *Scanner) {
-		assertScan(t, s, 0, token.IDENT, []byte("x"))
+		assertScan(t, s, 0, token.IdentLocalVar, []byte("x"))
 		assertScan(t, s, 1, token.Plus, nil)
 		assertScan(t, s, 2, token.DecimalInteger, []byte("1"))
 	},
 	"x +1": func(t *testing.T, s *Scanner) {
-		assertScan(t, s, 0, token.IDENT, []byte("x"))
+		assertScan(t, s, 0, token.IdentLocalVar, []byte("x"))
 		assertScan(t, s, 2, token.DecimalInteger, []byte("+1"))
 	},
 	"x-1": func(t *testing.T, s *Scanner) {
-		assertScan(t, s, 0, token.IDENT, []byte("x"))
+		assertScan(t, s, 0, token.IdentLocalVar, []byte("x"))
 		assertScan(t, s, 1, token.Minus, nil)
 		assertScan(t, s, 2, token.DecimalInteger, []byte("1"))
 	},
 	"x -1": func(t *testing.T, s *Scanner) {
-		assertScan(t, s, 0, token.IDENT, []byte("x"))
+		assertScan(t, s, 0, token.IdentLocalVar, []byte("x"))
 		assertScan(t, s, 2, token.DecimalInteger, []byte("-1"))
 	},
 
@@ -181,17 +181,19 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	},
 
 	// ident
-	"$v":     assertScanToken(0, token.IdentGlobalVar, []byte("$v")),
-	"$v1":    assertScanToken(0, token.IdentGlobalVar, []byte("$v1")),
-	"@var1":  assertScanToken(0, token.IdentInstanceVar, []byte("@var1")),
-	"@@var1": assertScanToken(0, token.IdentClassVar, []byte("@@var1")),
-
-	"a": func(t *testing.T, s *Scanner) {
-		assertScan(t, s, 0, token.IDENT, []byte("a"))
-	},
+	"v":        assertScanToken(0, token.IdentLocalVar, []byte("v")),
+	"_":        assertScanToken(0, token.IdentLocalVar, []byte("_")),
+	"v?":       assertScanToken(0, token.IdentLocalMethod, []byte("v?")),
+	"v!":       assertScanToken(0, token.IdentLocalMethod, []byte("v!")),
+	"v=":       assertScanToken(0, token.IdentLocalMethod, []byte("v=")),
+	"$v":       assertScanToken(0, token.IdentGlobalVar, []byte("$v")),
+	"$v1":      assertScanToken(0, token.IdentGlobalVar, []byte("$v1")),
+	"@var1":    assertScanToken(0, token.IdentInstanceVar, []byte("@var1")),
+	"@@var1":   assertScanToken(0, token.IdentClassVar, []byte("@@var1")),
+	"Constant": assertScanToken(0, token.IdentConst, []byte("Constant")),
 	"a  b": func(t *testing.T, s *Scanner) {
-		assertScan(t, s, 0, token.IDENT, []byte("a"))
-		assertScan(t, s, 3, token.IDENT, []byte("b"))
+		assertScan(t, s, 0, token.IdentLocalVar, []byte("a"))
+		assertScan(t, s, 3, token.IdentLocalVar, []byte("b"))
 	},
 
 	// keywords

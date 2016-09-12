@@ -12,7 +12,6 @@ const (
 	None Token = iota
 	Continue
 	Illegal
-	IDENT
 	EOF
 	NewLine // new line
 
@@ -136,7 +135,9 @@ const (
 	KeywordWhile    // while
 	KeywordYield    // yield
 
+	IdentConst
 	IdentLocalVar
+	IdentLocalMethod
 	IdentGlobalVar
 	IdentInstanceVar
 	IdentClassVar

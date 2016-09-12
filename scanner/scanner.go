@@ -106,6 +106,12 @@ func (s *Scanner) skipLine() {
 // scanFunc implements a scanner that returns a token type and its literal.
 type scanFunc func(s *Scanner) (token.Token, []byte)
 
+func scanOne(tk token.Token) scanFunc {
+	return func(s *Scanner) (token.Token, []byte) {
+		return tk, nil
+	}
+}
+
 /*
 The scanner for speicfic token is picked up by the first letter of literal of
 token. Note that the scanner for 0-9, A-Z and a-z is set by below init func.
@@ -141,7 +147,7 @@ var scanners = [127]scanFunc{
 	'[':  scanBracket,
 	']':  scanOne(token.RBracket),
 	'^':  scanXor,
-	'_':  scanIdent,
+	'_':  scanLowercase,
 	'{':  scanOne(token.LBrace),
 	'|':  scanOr,
 	'}':  scanOne(token.RBrace),
@@ -155,17 +161,38 @@ func init() {
 		scanners[i] = scanNonZero
 	}
 	for i := 'A'; i <= 'Z'; i++ {
-		scanners[i] = scanIdent
+		scanners[i] = scanUppercase
 	}
 	for i := 'a'; i <= 'z'; i++ {
-		scanners[i] = scanIdent
+		scanners[i] = scanLowercase
 	}
 }
 
-func scanOne(tk token.Token) scanFunc {
-	return func(s *Scanner) (token.Token, []byte) {
-		return tk, nil
+func scanUppercase(s *Scanner) (token.Token, []byte) {
+	for token.IsIdent(s.char) {
+		s.next()
 	}
+	lit := s.src[s.begin:s.offset]
+	if t := token.KeywordToken(lit); t != token.None {
+		return t, nil
+	}
+	return token.IdentConst, lit
+}
+
+func scanLowercase(s *Scanner) (token.Token, []byte) {
+	t := token.IdentLocalVar
+	for token.IsIdent(s.char) {
+		s.next()
+	}
+	if s.char == '?' || s.char == '!' || s.char == '=' {
+		t = token.IdentLocalMethod
+		s.next()
+	}
+	lit := s.src[s.begin:s.offset]
+	if kt := token.KeywordToken(lit); kt != token.None {
+		return kt, nil
+	}
+	return t, lit
 }
 
 func skipWhiteSpaces(s *Scanner) (token.Token, []byte) {
@@ -606,15 +633,4 @@ func scanOr(s *Scanner) (token.Token, []byte) {
 		return token.AssignOr, nil
 	}
 	return token.Or, nil
-}
-
-func scanIdent(s *Scanner) (token.Token, []byte) {
-	for token.IsIdent(s.char) || s.char == '?' {
-		s.next()
-	}
-	literal := s.src[s.begin:s.offset]
-	if t := token.KeywordToken(literal); t != token.None {
-		return t, nil
-	}
-	return token.IDENT, literal
 }
