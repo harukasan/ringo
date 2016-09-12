@@ -12,6 +12,7 @@ cover: generate $(gobin)/gover gover.coverprofile
 
 cover-html: cover
 	go tool cover -html=gover.coverprofile
+	@rm gover.coverprofile
 
 coveralls: cover $(gobin)/goveralls
 	$(gobin)/goveralls -coverprofile=gover.coverprofile -service=travis-ci

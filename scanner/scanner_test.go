@@ -42,12 +42,13 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	},
 
 	// delimiters
-	"::":  assertScanToken(0, token.Colon2, nil),
 	",":   assertScanToken(0, token.Comma, nil),
+	".":   assertScanToken(0, token.Dot, nil),
 	"..":  assertScanToken(0, token.Dot2, nil),
 	"...": assertScanToken(0, token.Dot3, nil),
 	"?":   assertScanToken(0, token.Question, nil),
 	":":   assertScanToken(0, token.Colon, nil),
+	"::":  assertScanToken(0, token.Colon2, nil),
 	"=>":  assertScanToken(0, token.Arrow, nil),
 
 	// operators
