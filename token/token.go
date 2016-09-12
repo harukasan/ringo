@@ -12,7 +12,6 @@ const (
 	None Token = iota
 	Continue
 	Illegal
-	IDENT
 	EOF
 	NewLine // new line
 
@@ -135,6 +134,13 @@ const (
 	KeywordWhen     // when
 	KeywordWhile    // while
 	KeywordYield    // yield
+
+	IdentConst
+	IdentLocalVar
+	IdentLocalMethod
+	IdentGlobalVar
+	IdentInstanceVar
+	IdentClassVar
 )
 
 var keywordLiterals = [127][][]byte{
