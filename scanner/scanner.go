@@ -124,12 +124,12 @@ var scanners = [127]scanFunc{
 	0x0d: skipWhiteSpaces,
 	'!':  scanNot,
 	' ':  skipWhiteSpaces,
-	'"':  scanDoubleQuoteString,
+	'"':  scanDoubleQuote,
 	'#':  scanComment,
 	'$':  scanDollar,
 	'%':  scanMod,
-	'&':  scanAnd,
-	'\'': scanSingleQuoteString,
+	'&':  scanAmp,
+	'\'': scanSingleQuote,
 	'(':  scanOne(token.LParen),
 	')':  scanOne(token.RParen),
 	'*':  scanAsterisk,
@@ -168,33 +168,6 @@ func init() {
 	}
 }
 
-func scanUppercase(s *Scanner) (token.Token, []byte) {
-	for token.IsIdent(s.char) {
-		s.next()
-	}
-	lit := s.src[s.begin:s.offset]
-	if t := token.KeywordToken(lit); t != token.None {
-		return t, nil
-	}
-	return token.IdentConst, lit
-}
-
-func scanLowercase(s *Scanner) (token.Token, []byte) {
-	t := token.IdentLocalVar
-	for token.IsIdent(s.char) {
-		s.next()
-	}
-	if s.char == '?' || s.char == '!' || s.char == '=' {
-		t = token.IdentLocalMethod
-		s.next()
-	}
-	lit := s.src[s.begin:s.offset]
-	if kt := token.KeywordToken(lit); kt != token.None {
-		return kt, nil
-	}
-	return t, lit
-}
-
 func skipWhiteSpaces(s *Scanner) (token.Token, []byte) {
 	s.ctx.nospace = false
 	for token.IsWhiteSpace(s.char) {
@@ -221,17 +194,17 @@ func scanNot(s *Scanner) (token.Token, []byte) {
 	return token.Not, nil
 }
 
-func scanComment(s *Scanner) (token.Token, []byte) {
-	s.skipLine()
-	return token.Continue, nil
-}
-
-func scanDoubleQuoteString(s *Scanner) (token.Token, []byte) {
+func scanDoubleQuote(s *Scanner) (token.Token, []byte) {
 	for s.char != '"' && s.err == nil {
 		s.next()
 	}
 	s.next()
 	return token.StringPart, s.src[s.begin:s.offset]
+}
+
+func scanComment(s *Scanner) (token.Token, []byte) {
+	s.skipLine()
+	return token.Continue, nil
 }
 
 func scanDollar(s *Scanner) (token.Token, []byte) {
@@ -253,7 +226,7 @@ func scanMod(s *Scanner) (token.Token, []byte) {
 	return token.Mod, nil
 }
 
-func scanAnd(s *Scanner) (token.Token, []byte) {
+func scanAmp(s *Scanner) (token.Token, []byte) {
 	if s.char == '&' { // &&
 		s.next()
 		if s.char == '=' { // &&=
@@ -269,7 +242,7 @@ func scanAnd(s *Scanner) (token.Token, []byte) {
 	return token.Amp, nil
 }
 
-func scanSingleQuoteString(s *Scanner) (token.Token, []byte) {
+func scanSingleQuote(s *Scanner) (token.Token, []byte) {
 	for s.char != '\'' && s.err == nil {
 		if s.char == '\\' {
 			s.next()
@@ -357,80 +330,6 @@ func scanDiv(s *Scanner) (token.Token, []byte) {
 		return token.AssignDiv, nil
 	}
 	return token.Div, nil
-}
-
-func scanZero(s *Scanner) (token.Token, []byte) {
-	ch := s.char
-	switch ch {
-	case '.':
-		s.next()
-		return scanFloatDecimal(s)
-	case 'd', 'D':
-		s.next()
-		return scanInt(s)
-	case 'b', 'B':
-		s.next()
-		return scanBinInt(s)
-	case '_', 'o', 'O':
-		s.next()
-		return scanOctInt(s)
-	case 'x', 'X':
-		s.next()
-		return scanHexInt(s)
-	}
-	return token.DecimalInteger, s.src[s.begin:s.offset]
-}
-
-func scanBinInt(s *Scanner) (token.Token, []byte) {
-	for s.char == '0' || s.char == '1' || s.char == '_' {
-		s.next()
-	}
-	return token.BinaryInteger, s.src[s.begin:s.offset]
-}
-
-func scanOctInt(s *Scanner) (token.Token, []byte) {
-	for token.IsOctadecimal(s.char) || s.char == '_' {
-		s.next()
-	}
-	return token.OctadecimalInteger, s.src[s.begin:s.offset]
-}
-
-func scanHexInt(s *Scanner) (token.Token, []byte) {
-	for token.IsHexadecimal(s.char) || s.char == '_' {
-		s.next()
-	}
-	return token.HexadecimalInteger, s.src[s.begin:s.offset]
-}
-
-func scanInt(s *Scanner) (token.Token, []byte) {
-	for token.IsDecimal(s.char) || s.char == '_' {
-		s.next()
-	}
-	return token.DecimalInteger, s.src[s.begin:s.offset]
-}
-
-func scanNonZero(s *Scanner) (token.Token, []byte) {
-	for token.IsDecimal(s.char) || s.char == '_' {
-		s.next()
-	}
-	if s.char == '.' {
-		s.next()
-		return scanFloatDecimal(s)
-	}
-	return token.DecimalInteger, s.src[s.begin:s.offset]
-}
-
-func scanFloatDecimal(s *Scanner) (token.Token, []byte) {
-	for token.IsDecimal(s.char) || s.char == '_' {
-		s.next()
-	}
-	if s.char == 'e' || s.char == 'E' {
-		s.next()
-		for token.IsDecimal(s.char) || s.char == '_' {
-			s.next()
-		}
-	}
-	return token.Float, s.src[s.begin:s.offset]
 }
 
 func scanColon(s *Scanner) (token.Token, []byte) {
@@ -633,4 +532,105 @@ func scanOr(s *Scanner) (token.Token, []byte) {
 		return token.AssignOr, nil
 	}
 	return token.Or, nil
+}
+
+func scanZero(s *Scanner) (token.Token, []byte) {
+	ch := s.char
+	switch ch {
+	case '.':
+		s.next()
+		return scanFloatDecimal(s)
+	case 'd', 'D':
+		s.next()
+		return scanInt(s)
+	case 'b', 'B':
+		s.next()
+		return scanBinInt(s)
+	case '_', 'o', 'O':
+		s.next()
+		return scanOctInt(s)
+	case 'x', 'X':
+		s.next()
+		return scanHexInt(s)
+	}
+	return token.DecimalInteger, s.src[s.begin:s.offset]
+}
+
+func scanBinInt(s *Scanner) (token.Token, []byte) {
+	for s.char == '0' || s.char == '1' || s.char == '_' {
+		s.next()
+	}
+	return token.BinaryInteger, s.src[s.begin:s.offset]
+}
+
+func scanOctInt(s *Scanner) (token.Token, []byte) {
+	for token.IsOctadecimal(s.char) || s.char == '_' {
+		s.next()
+	}
+	return token.OctadecimalInteger, s.src[s.begin:s.offset]
+}
+
+func scanHexInt(s *Scanner) (token.Token, []byte) {
+	for token.IsHexadecimal(s.char) || s.char == '_' {
+		s.next()
+	}
+	return token.HexadecimalInteger, s.src[s.begin:s.offset]
+}
+
+func scanInt(s *Scanner) (token.Token, []byte) {
+	for token.IsDecimal(s.char) || s.char == '_' {
+		s.next()
+	}
+	return token.DecimalInteger, s.src[s.begin:s.offset]
+}
+
+func scanNonZero(s *Scanner) (token.Token, []byte) {
+	for token.IsDecimal(s.char) || s.char == '_' {
+		s.next()
+	}
+	if s.char == '.' {
+		s.next()
+		return scanFloatDecimal(s)
+	}
+	return token.DecimalInteger, s.src[s.begin:s.offset]
+}
+
+func scanFloatDecimal(s *Scanner) (token.Token, []byte) {
+	for token.IsDecimal(s.char) || s.char == '_' {
+		s.next()
+	}
+	if s.char == 'e' || s.char == 'E' {
+		s.next()
+		for token.IsDecimal(s.char) || s.char == '_' {
+			s.next()
+		}
+	}
+	return token.Float, s.src[s.begin:s.offset]
+}
+
+func scanUppercase(s *Scanner) (token.Token, []byte) {
+	for token.IsIdent(s.char) {
+		s.next()
+	}
+	lit := s.src[s.begin:s.offset]
+	if t := token.KeywordToken(lit); t != token.None {
+		return t, nil
+	}
+	return token.IdentConst, lit
+}
+
+func scanLowercase(s *Scanner) (token.Token, []byte) {
+	t := token.IdentLocalVar
+	for token.IsIdent(s.char) {
+		s.next()
+	}
+	if s.char == '?' || s.char == '!' || s.char == '=' {
+		t = token.IdentLocalMethod
+		s.next()
+	}
+	lit := s.src[s.begin:s.offset]
+	if kt := token.KeywordToken(lit); kt != token.None {
+		return kt, nil
+	}
+	return t, lit
 }
