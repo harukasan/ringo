@@ -158,7 +158,7 @@ var scanners = [127]scanFunc{
 	'[':  scanBracket,
 	']':  scanOne(token.RBracket),
 	'^':  scanXor,
-	'_':  scanLowercase,
+	'_':  scanUnderscore,
 	'{':  scanOne(token.LBrace),
 	'|':  scanOr,
 	'}':  scanOne(token.RBrace),
@@ -567,6 +567,29 @@ func scanXor(s *Scanner) (token.Token, []byte) {
 		return token.AssignXor, nil
 	}
 	return token.Xor, nil
+}
+
+func scanUnderscore(s *Scanner) (token.Token, []byte) {
+	if s.offset < 2 || s.src[s.offset-2] == '\n' {
+		if bytes.HasPrefix(s.src[s.offset:], []byte("_END__")) {
+			s.next() // _
+			s.next() // E
+			s.next() // N
+			s.next() // D
+			s.next() // _
+			s.next() // _
+			if s.char == '\r' {
+				if p := s.peek(2); p != nil && p[1] == '\n' {
+					s.next()
+				}
+			}
+			if s.char == '\n' || s.err == io.EOF {
+				s.err = io.EOF
+				return token.EOF, nil
+			}
+		}
+	}
+	return scanLowercase(s)
 }
 
 func scanOr(s *Scanner) (token.Token, []byte) {
