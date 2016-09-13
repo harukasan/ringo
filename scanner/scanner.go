@@ -110,10 +110,6 @@ func (s *Scanner) skipLine() {
 	}
 }
 
-func (s *Scanner) beginOnLineHead() bool {
-	return s.begin <= 0 || s.src[s.begin-1] == '\n'
-}
-
 // scanFunc implements a scanner that returns a token type and its literal.
 type scanFunc func(s *Scanner) (token.Token, []byte)
 
