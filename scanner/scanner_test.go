@@ -40,6 +40,19 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 		assertScan(t, s, 0, token.IdentLocalVar, []byte("a"))
 		assertScan(t, s, 3, token.EOF, nil)
 	},
+	"=begin\nTEXT\n=end\n":          assertScanToken(17, token.EOF, nil),
+	"=begin open\nTEXT\n=end close": assertScanToken(27, token.EOF, nil),
+
+	// __END__
+	"__END__":     assertScanToken(0, token.EOF, nil),
+	"__END__\n1":  assertScanToken(0, token.EOF, nil),
+	"__END__\r":   assertScanToken(0, token.IdentLocalVar, []byte("__END__")),
+	"__END__\r\n": assertScanToken(0, token.EOF, nil),
+	"\n__END__\n": func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.NewLine, nil)
+		assertScan(t, s, 1, token.EOF, nil)
+	},
+	" __END__": assertScanToken(1, token.IdentLocalVar, []byte("__END__")),
 
 	// delimiters
 	",":   assertScanToken(0, token.Comma, nil),
