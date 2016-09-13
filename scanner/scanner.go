@@ -52,8 +52,15 @@ func (s *Scanner) next() {
 	debug.Printf("next: len=%v, offset=%v, char=%v", len(s.src), s.offset, s.char)
 }
 
+func (s *Scanner) peek(n int) []byte {
+	if len(s.src) < s.offset+n {
+		return nil
+	}
+	return s.src[s.offset : s.offset+n]
+}
+
 func (s *Scanner) failf(format string, v ...interface{}) {
-	if s.err != nil {
+	if s.err != nil && s.err != io.EOF {
 		return
 	}
 	s.err = fmt.Errorf(format, v...)
@@ -101,6 +108,10 @@ func (s *Scanner) skipLine() {
 		}
 		s.next()
 	}
+}
+
+func (s *Scanner) beginOnLineHead() bool {
+	return s.begin <= 0 || s.src[s.begin-1] == '\n'
 }
 
 // scanFunc implements a scanner that returns a token type and its literal.
@@ -458,11 +469,51 @@ func scanEq(s *Scanner) (token.Token, []byte) {
 	case '>': // =>
 		s.next()
 		return token.Arrow, nil
+	case 'b': // =begin
+		if s.offset < 2 || s.src[s.offset-2] == '\n' {
+			p := s.peek(6)
+			if p != nil && bytes.HasPrefix(p, []byte("begin")) {
+				if token.IsWhiteSpace(p[5]) || p[5] == '\n' {
+					skipMultiLineComment(s)
+					return token.Continue, nil
+				}
+			}
+		}
 	case '~': // =~
 		s.next()
 		return token.Match, nil
 	}
 	return token.Assign, nil
+}
+
+func skipMultiLineComment(s *Scanner) {
+	for {
+		if s.char == '=' {
+			s.next()
+			if bytes.HasPrefix(s.src[s.offset:], []byte("end")) {
+				s.next()
+				s.next()
+				s.next()
+				if token.IsWhiteSpace(s.char) {
+					s.skipLine()
+				}
+				if s.char == '\n' {
+					s.next()
+					return
+				}
+				if s.err == io.EOF {
+					return
+				}
+			}
+		}
+		s.next()
+		if s.err != nil {
+			if s.err == io.EOF {
+				s.failf("multi-line comment must be closed")
+			}
+			return
+		}
+	}
 }
 
 func scanGt(s *Scanner) (token.Token, []byte) {
