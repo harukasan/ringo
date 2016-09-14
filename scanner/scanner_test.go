@@ -31,10 +31,11 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	";":    assertScanToken(0, token.NewLine, nil),
 
 	// white spaces
-	"":     assertScanToken(0, token.EOF, nil),
-	" ":    assertScanToken(1, token.EOF, nil),
-	" \t":  assertScanToken(2, token.EOF, nil),
-	"\\\n": assertScanToken(2, token.EOF, nil),
+	"":       assertScanToken(0, token.EOF, nil),
+	" ":      assertScanToken(1, token.EOF, nil),
+	" \t":    assertScanToken(2, token.EOF, nil),
+	"\\\n":   assertScanToken(2, token.EOF, nil),
+	"\\\r\n": assertScanToken(3, token.EOF, nil),
 
 	// comment
 	" #": assertScanToken(2, token.EOF, nil),
