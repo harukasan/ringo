@@ -153,6 +153,7 @@ var scanners = [127]scanFunc{
 	'?':  scanOne(token.Question),
 	'@':  scanAt,
 	'[':  scanBracket,
+	'\\': scanEscSeq,
 	']':  scanOne(token.RBracket),
 	'^':  scanXor,
 	'_':  scanUnderscore,
@@ -556,6 +557,24 @@ func scanBracket(s *Scanner) (token.Token, []byte) {
 		return token.ElementRef, nil
 	}
 	return token.LBracket, nil
+}
+
+func scanEscSeq(s *Scanner) (token.Token, []byte) {
+	switch s.char {
+	case '\r':
+		s.next()
+		if s.char == '\n' {
+			s.next()
+			s.ctx.nospace = false
+			return token.Continue, nil
+		}
+	case '\n':
+		s.next()
+		s.ctx.nospace = false
+		return token.Continue, nil
+	}
+	s.failf("escape character must be at end of line")
+	return token.Illegal, nil
 }
 
 func scanXor(s *Scanner) (token.Token, []byte) {
