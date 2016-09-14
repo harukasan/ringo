@@ -146,6 +146,7 @@ var scanners = [127]scanFunc{
 	'.':  scanDot,
 	'/':  scanDiv,
 	':':  scanColon,
+	';':  scanNewLine,
 	'<':  scanLt,
 	'=':  scanEq,
 	'>':  scanGt,

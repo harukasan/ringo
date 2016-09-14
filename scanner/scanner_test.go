@@ -28,6 +28,7 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	// new line
 	"\n":   assertScanToken(0, token.NewLine, nil),
 	"\r\n": assertScanToken(1, token.NewLine, nil),
+	";":    assertScanToken(0, token.NewLine, nil),
 
 	// white spaces
 	"":    assertScanToken(0, token.EOF, nil),
