@@ -252,14 +252,18 @@ func scanAmp(s *Scanner) (token.Token, []byte) {
 }
 
 func scanSingleQuote(s *Scanner) (token.Token, []byte) {
+	rOffset := 0
 	for s.char != '\'' && s.err == nil {
 		if s.char == '\\' {
 			s.next()
+			if s.char == '\\' || s.char == '\'' {
+				rOffset++
+			}
 		}
+		s.src[s.offset-rOffset] = s.char
 		s.next()
 	}
-	s.next()
-	return token.StringPart, s.src[s.begin:s.offset]
+	return token.StringPart, s.src[s.begin+1 : s.offset-rOffset]
 }
 
 func scanAsterisk(s *Scanner) (token.Token, []byte) {

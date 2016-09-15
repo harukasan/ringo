@@ -172,9 +172,9 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	},
 
 	// string literals:
-	`'a'`:      assertScanToken(0, token.StringPart, []byte(`'a'`)),
-	`'\''`:     assertScanToken(0, token.StringPart, []byte(`'\''`)),
-	`'\a\\\''`: assertScanToken(0, token.StringPart, []byte(`'\a\\\''`)),
+	`'a'`:      assertScanToken(0, token.StringPart, []byte(`a`)),
+	`'\''`:     assertScanToken(0, token.StringPart, []byte(`'`)),
+	`'\a\\\''`: assertScanToken(0, token.StringPart, []byte(`\a\'`)),
 
 	// heredoc
 	"<<TEXT\nabc\n\nTEXT\n": func(t *testing.T, s *Scanner) {
@@ -258,10 +258,30 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 }
 
 func TestScanner(t *testing.T) {
-	debug.Enable = true
+	debug.Enable = false
 	for input, r := range rules {
 		debug.Printf("input: %q", input)
 		s := New([]byte(input))
 		r(t, s)
+	}
+}
+
+// Note: When scanning a single quoted string, the source array of bytes will
+// broken to unescape characters.
+func TestScanSingleQuotedString(t *testing.T) {
+	debug.Enable = true
+	input := []byte(`'a\\\\\\\'b\c'`)
+	want := []byte(`a\\\'b\c`)
+
+	// copy to working buffer
+	work := make([]byte, len(input))
+	copy(work, input)
+
+	s := New(work)
+	s.next() // skip first '
+	_, got := scanSingleQuote(s)
+
+	if !bytes.Equal(got, want) {
+		t.Fatalf("\ninput =%#v\nwant  =%#v\ngot   =%#v", string(input), string(want), string(got))
 	}
 }
