@@ -24,6 +24,7 @@ type Scanner struct {
 type scannerCtx struct {
 	nospace   bool          // whether the previous is not a space
 	stateScan stateScanFunc // scanner func for the special state
+	parent    *scannerCtx   // parent context
 }
 
 // scanning function for special state
@@ -65,6 +66,19 @@ func (s *Scanner) failf(format string, v ...interface{}) {
 	}
 	s.err = fmt.Errorf(format, v...)
 	debug.Printf("failf: %v", s.err)
+}
+
+func (s *Scanner) pushCtx(state stateScanFunc) {
+	s.ctx = &scannerCtx{
+		stateScan: state,
+		parent:    s.ctx,
+	}
+}
+
+func (s *Scanner) popCtx() {
+	if s.ctx.parent != nil {
+		s.ctx = s.ctx.parent
+	}
 }
 
 // Scan reads and returns a parsed token position, type, and its literal.
@@ -410,7 +424,7 @@ func scanHeredocBegin(s *Scanner) (token.Token, []byte) {
 		s.next()
 	}
 	term := s.src[termBegin:s.offset]
-	s.ctx.stateScan = stateHeredocFirstLine(term, indent)
+	s.pushCtx(stateHeredocFirstLine(term, indent))
 	return token.HeredocBegin, s.src[s.begin:s.offset]
 }
 
@@ -419,7 +433,8 @@ func stateHeredocFirstLine(term []byte, indent bool) stateScanFunc {
 		if s.char == '\n' {
 			begin := s.offset
 			s.next()
-			s.ctx.stateScan = stateInHeredoc(term, indent)
+			s.popCtx()
+			s.pushCtx(stateInHeredoc(term, indent))
 			t, literal := scanNewLine(s)
 			return begin, t, literal
 		}
@@ -444,7 +459,7 @@ func stateInHeredoc(term []byte, indent bool) stateScanFunc {
 						s.next()
 					}
 					if s.char == '\n' || s.err == io.EOF {
-						s.ctx.stateScan = nil
+						s.popCtx()
 						return begin, token.HeredocPart, s.src[begin:lbegin]
 					}
 				}
