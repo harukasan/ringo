@@ -326,8 +326,16 @@ func decodeCtrlEsc(c byte) byte {
 	return c & 0x9f
 }
 
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func decodeOctalEsc(s *Scanner) (n int, v byte) {
-	for n = 0; n+s.offset < len(s.src) && n < 3; n++ {
+	m := min(3, len(s.src)-s.offset)
+	for n = 0; n < m; n++ {
 		c := s.src[s.offset+n]
 		if !token.IsOctadecimal(c) {
 			break
@@ -341,7 +349,8 @@ func decodeOctalEsc(s *Scanner) (n int, v byte) {
 }
 
 func decodeHexEsc(s *Scanner) (n int, v byte) {
-	for n = 0; n+s.offset < len(s.src) && n < 2; n++ {
+	m := min(2, len(s.src)-s.offset)
+	for n = 0; n < m; n++ {
 		c := s.src[s.offset+n]
 		var d byte
 		switch {
