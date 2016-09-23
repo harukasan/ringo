@@ -234,14 +234,18 @@ func scanNot(s *Scanner) (token.Token, []byte) {
 	return token.Not, nil
 }
 
+func isInsertPrefix(c byte) bool {
+	return c == '@' || c == '$' || c == '{'
+}
+
 func scanDoubleQuote(s *Scanner) (token.Token, []byte) {
 	t := token.String
 	next, rOffset := scanInDoubleQoutes(s)
-	switch next {
-	case '@', '$', '{':
+	switch {
+	case isInsertPrefix(next):
 		t = token.StringPart
 		s.pushCtx(stateInDoubleQoutes)
-	case '"':
+	case next == '"':
 		s.next()
 	}
 	off := s.offset - rOffset
@@ -256,38 +260,29 @@ func scanInDoubleQoutes(s *Scanner) (byte, int) {
 	for s.char != '"' && s.err == nil {
 		if s.char == '#' {
 			next := s.peek(2)[1]
-			if next == '@' || next == '$' || next == '{' {
+			if isInsertPrefix(next) {
 				return next, nEscape
 			}
 		}
 
 		c := s.char
 		if c == '\\' {
+			nEscape++
 			s.next()
 			c = s.char
 			if v := decodeEsc(c); v != 0 {
 				c = v
 			} else {
+				var n int
 				switch c {
 				case '\n':
-					nEscape++
-					s.next()
+					n = 2
 				case '0', '1', '2', '3', '4', '5', '6', '7':
-					var n int
 					n, c = decodeOctalEsc(s)
-					for i := 1; i < n; i++ {
-						nEscape++
-						s.next()
-					}
 				case 'x':
 					nEscape++
 					s.next()
-					var n int
 					n, c = decodeHexEsc(s)
-					for i := 1; i < n; i++ {
-						nEscape++
-						s.next()
-					}
 				case 'C':
 					nEscape++
 					s.next()
@@ -303,8 +298,11 @@ func scanInDoubleQoutes(s *Scanner) (byte, int) {
 					s.next()
 					c = decodeCtrlEsc(s.char)
 				}
+				for i := 1; i < n; i++ {
+					nEscape++
+					s.next()
+				}
 			}
-			nEscape++
 		}
 		s.src[s.offset-nEscape] = c
 		s.next()
