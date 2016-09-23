@@ -172,9 +172,55 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 	},
 
 	// string literals:
-	`'a'`:      assertScanToken(0, token.StringPart, []byte(`a`)),
-	`'\''`:     assertScanToken(0, token.StringPart, []byte(`'`)),
-	`'\a\\\''`: assertScanToken(0, token.StringPart, []byte(`\a\'`)),
+	`"a"`: assertScanToken(0, token.String, []byte(`a`)),
+	`"\"`: assertScanToken(0, token.String, []byte(``)),
+	`"#{a}"`: func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.StringPart, []byte(""))
+		assertScan(t, s, 1, token.InsertBegin, nil) // points to '#'
+		assertScan(t, s, 3, token.IdentLocalVar, []byte("a"))
+		assertScan(t, s, 4, token.InsertEnd, nil)
+	},
+	`"#@@a"`: func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.StringPart, []byte(""))
+		assertScan(t, s, 1, token.IdentClassVar, []byte("@@a")) // points to '#'
+	},
+	`"#@a"`: func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.StringPart, []byte(""))
+		assertScan(t, s, 1, token.IdentInstanceVar, []byte("@a")) // points to '#'
+	},
+	`"#$a"`: func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.StringPart, []byte(""))
+		assertScan(t, s, 1, token.IdentGlobalVar, []byte("$a")) // points to '#'
+	},
+	`"#{"a"}"`: func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.StringPart, []byte(""))
+		assertScan(t, s, 1, token.InsertBegin, nil) // points to '#'
+		assertScan(t, s, 3, token.String, []byte("a"))
+		assertScan(t, s, 6, token.InsertEnd, nil)
+		assertScan(t, s, 7, token.String, []byte(""))
+	},
+	`""""`: func(t *testing.T, s *Scanner) {
+		assertScan(t, s, 0, token.String, []byte(""))
+		assertScan(t, s, 2, token.String, []byte(""))
+	},
+	//`"\n"`:       assertScanToken(0, token.String, []byte{0x0a}),
+	`"\t"`:       assertScanToken(0, token.String, []byte{0x09}),
+	`"\r"`:       assertScanToken(0, token.String, []byte{0x0d}),
+	`"\f"`:       assertScanToken(0, token.String, []byte{0x0c}),
+	`"\v"`:       assertScanToken(0, token.String, []byte{0x0b}),
+	`"\a"`:       assertScanToken(0, token.String, []byte{0x07}),
+	`"\e"`:       assertScanToken(0, token.String, []byte{0x1b}),
+	`"\b"`:       assertScanToken(0, token.String, []byte{0x08}),
+	`"\s"`:       assertScanToken(0, token.String, []byte{0x20}),
+	`"\xff\xFF"`: assertScanToken(0, token.String, []byte{0xff, 0xff}),
+	`"\377\377"`: assertScanToken(0, token.String, []byte{0xff, 0xff}),
+	`"\ca"`:      assertScanToken(0, token.String, []byte{'\a'}),
+	`"\C-a"`:     assertScanToken(0, token.String, []byte{'\a'}),
+	"\"\\\n\"":   assertScanToken(0, token.String, []byte(``)),
+
+	`'a'`:      assertScanToken(0, token.String, []byte(`a`)),
+	`'\''`:     assertScanToken(0, token.String, []byte(`'`)),
+	`'\a\\\''`: assertScanToken(0, token.String, []byte(`\a\'`)),
 
 	// heredoc
 	"<<TEXT\nabc\n\nTEXT\n": func(t *testing.T, s *Scanner) {
@@ -258,7 +304,6 @@ var rules = map[string]func(t *testing.T, s *Scanner){
 }
 
 func TestScanner(t *testing.T) {
-	debug.Enable = false
 	for input, r := range rules {
 		debug.Printf("input: %q", input)
 		s := New([]byte(input))
@@ -269,7 +314,6 @@ func TestScanner(t *testing.T) {
 // Note: When scanning a single quoted string, the source array of bytes will
 // broken to unescape characters.
 func TestScanSingleQuotedString(t *testing.T) {
-	debug.Enable = true
 	input := []byte(`'a\\\\\\\'b\c'`)
 	want := []byte(`a\\\'b\c`)
 
@@ -283,5 +327,39 @@ func TestScanSingleQuotedString(t *testing.T) {
 
 	if !bytes.Equal(got, want) {
 		t.Fatalf("\ninput =%#v\nwant  =%#v\ngot   =%#v", string(input), string(want), string(got))
+	}
+}
+
+func TestDecodeOctalEsc(t *testing.T) {
+	rules := map[string]struct {
+		n   int
+		v   byte
+		err error
+	}{
+		"7":   {n: 1, v: 07},
+		"77":  {n: 2, v: 077},
+		"377": {n: 3, v: 0377},
+	}
+	for input, want := range rules {
+		n, v := decodeOctalEsc(NewString(input))
+		if n != want.n || v != want.v {
+			t.Errorf("decodeOctalEsc: n=%v (want=%v), v=%v (want=%v)", n, want.n, v, want.v)
+		}
+	}
+}
+
+func TestDecodeHexEsc(t *testing.T) {
+	rules := map[string]struct {
+		n int
+		v byte
+	}{
+		"f":  {n: 1, v: 0xf},
+		"ff": {n: 2, v: 0xff},
+	}
+	for input, want := range rules {
+		n, v := decodeHexEsc(NewString(input))
+		if n != want.n || v != want.v {
+			t.Errorf("decodeHexEsc: n=%v (want=%v), v=%v (want=%v)", n, want.n, v, want.v)
+		}
 	}
 }

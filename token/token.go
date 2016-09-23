@@ -20,9 +20,12 @@ const (
 	OctadecimalInteger
 	HexadecimalInteger
 	Float
+	String
 	StringPart
 	HeredocBegin
 	HeredocPart
+	InsertBegin
+	InsertEnd
 
 	// brackets:
 	LParen   // (
