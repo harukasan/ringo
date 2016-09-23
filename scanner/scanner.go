@@ -294,14 +294,14 @@ func scanInDoubleQoutes(s *Scanner) (byte, int) {
 					if s.char == '-' {
 						nEscape++
 						s.next()
-						c = decodeEsc(s.char)
+						c = decodeCtrlEsc(s.char)
 					} else {
 						s.failf("invalid escape")
 					}
 				case 'c':
 					nEscape++
 					s.next()
-					c = decodeEsc(s.char)
+					c = decodeCtrlEsc(s.char)
 				}
 			}
 			nEscape++
