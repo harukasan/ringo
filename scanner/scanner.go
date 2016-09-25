@@ -605,10 +605,23 @@ func scanHeredocBegin(s *Scanner) (token.Token, []byte) {
 	default:
 		return token.Continue, nil
 	}
+
+	var quote byte
+	if s.char == '\'' {
+		quote = s.char
+		s.next()
+		termBegin = s.offset
+	}
 	for token.IsIdent(s.char) {
 		s.next()
 	}
 	term := s.src[termBegin:s.offset]
+	if quote != 0 {
+		if s.char != quote {
+			s.failf("invalid heredoc identifier")
+		}
+		s.next()
+	}
 	s.pushCtx(stateHeredocFirstLine(term, indent))
 	return token.HeredocBegin, s.src[s.begin:s.offset]
 }
