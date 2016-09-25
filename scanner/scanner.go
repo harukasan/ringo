@@ -623,7 +623,7 @@ func stateHeredocFirstLine(term []byte, indent bool) stateScanFunc {
 			t, literal := scanNewLine(s)
 			return begin, t, literal
 		}
-		return 0, token.Continue, nil
+		return stateCompStmts(s)
 	}
 }
 

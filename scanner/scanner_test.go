@@ -210,11 +210,14 @@ var rules = map[string][]struct {
 	`'\a\\\''`: {{0, token.String, []byte(`\a\'`)}},
 
 	// heredoc
-	"<<TEXT\nabc\n\nTEXT\n": {
-		{0, token.HeredocBegin, []byte("<<TEXT")},
-		{6, token.NewLine, nil},
-		{7, token.HeredocPart, []byte("abc\n\n")},
-		{16, token.NewLine, nil},
+	"a <<TEXT, x\nabc\n\nTEXT\n": {
+		{0, token.IdentLocalVar, []byte("a")},
+		{2, token.HeredocBegin, []byte("<<TEXT")},
+		{8, token.Comma, nil},
+		{10, token.IdentLocalVar, []byte("x")},
+		{11, token.NewLine, nil},
+		{12, token.HeredocPart, []byte("abc\n\n")},
+		{21, token.NewLine, nil},
 	},
 	"<<-TEXT\n  TEXT\n": {
 		{0, token.HeredocBegin, []byte("<<-TEXT")},
