@@ -392,8 +392,9 @@ func stateInDoubleQoutes(s *Scanner) (int, token.Token, []byte) {
 	if next == '@' || next == '$' || next == '{' {
 		return s.begin, token.StringPart, s.src[s.begin : s.offset-nEscape]
 	}
+	s.next()
 	s.popCtx()
-	return s.begin, token.String, s.src[s.begin : s.offset-nEscape]
+	return s.begin, token.String, s.src[s.begin : s.offset-nEscape-1]
 }
 
 func stateInsertStmts(s *Scanner) (pos int, t token.Token, literal []byte) {
