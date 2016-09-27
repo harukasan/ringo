@@ -240,7 +240,7 @@ func isInsertPrefix(c byte) bool {
 
 func scanDoubleQuote(s *Scanner) (token.Token, []byte) {
 	t := token.String
-	next, rOffset := scanInDoubleQoutes(s)
+	next, rOffset := decodeEscapes(s, '"')
 	switch {
 	case isInsertPrefix(next):
 		t = token.StringPart
@@ -255,70 +255,75 @@ func scanDoubleQuote(s *Scanner) (token.Token, []byte) {
 	return t, s.src[s.begin+1 : off]
 }
 
-func scanInDoubleQoutes(s *Scanner) (byte, int) {
-	nEscape := 0
-	for s.char != '"' && s.err == nil {
-		if s.char == '#' {
-			next := s.peek(2)[1]
-			if isInsertPrefix(next) {
-				return next, nEscape
-			}
-		}
-
-		c := s.char
-		if c == '\\' {
-			nEscape++
-			s.next()
-			c = s.char
-			if v := decodeEsc(c); v != 0 {
-				c = v
-			} else {
-				var n int
-				switch c {
-				case '\n':
-					n = 2
-				case '0', '1', '2', '3', '4', '5', '6', '7':
-					n, c = decodeOctalEsc(s)
-				case 'x':
-					nEscape++
-					s.next()
-					n, c = decodeHexEsc(s)
-				case 'C':
-					nEscape++
-					s.next()
-					if s.char == '-' {
-						nEscape++
-						s.next()
-						c = decodeCtrlEsc(s.char)
-					} else {
-						s.failf("invalid escape")
-					}
-				case 'c':
-					nEscape++
-					s.next()
-					c = decodeCtrlEsc(s.char)
-				}
-				for i := 1; i < n; i++ {
-					nEscape++
-					s.next()
-				}
-			}
-		}
-		s.src[s.offset-nEscape] = c
-		s.next()
-	}
-	return s.char, nEscape
+func replace(s *Scanner, c byte, offset int) {
+	s.src[s.offset-offset] = c
+	s.next()
 }
 
-func decodeEsc(c byte) byte {
-	return escapes[c]
+func decodeEscapes(s *Scanner, term byte) (byte, int) {
+	var skip int
+	for s.char != term && s.err == nil {
+		switch s.char {
+		case '#':
+			next := s.peek(2)[1]
+			if isInsertPrefix(next) {
+				return next, skip
+			}
+		case '\\':
+			skip = decodeEscape(s, skip)
+		default:
+			replace(s, s.char, skip)
+		}
+	}
+	return s.char, skip
+}
+
+func decodeEscape(s *Scanner, skip int) int {
+	skip++
+	s.next()
+	if v := escapes[s.char]; v != 0 {
+		replace(s, v, skip)
+		return skip
+	}
+	var n int
+	c := s.char
+	switch c {
+	case '\n':
+		n = 2
+	case '0', '1', '2', '3', '4', '5', '6', '7':
+		n, c = decodeOctalEsc(s)
+	case 'x':
+		skip++
+		s.next()
+		n, c = decodeHexEsc(s)
+	case 'C':
+		skip++
+		s.next()
+		if s.char != '-' {
+			s.failf("invalid escape")
+			return skip
+		}
+		skip++
+		s.next()
+		c = decodeCtrlEsc(s.char)
+	case 'c':
+		skip++
+		s.next()
+		c = decodeCtrlEsc(s.char)
+	}
+	for i := 1; i < n; i++ {
+		skip++
+		s.next()
+	}
+	replace(s, c, skip)
+	return skip
 }
 
 func decodeCtrlEsc(c byte) byte {
 	if c == '?' {
 		return 0x7f
 	}
-	if v := decodeEsc(c); v != 0 {
+	if v := escapes[c]; v != 0 {
 		c = v
 	}
 	return c & 0x9f
@@ -388,7 +393,7 @@ func stateInDoubleQoutes(s *Scanner) (int, token.Token, []byte) {
 		}
 	}
 	s.begin = s.offset
-	next, nEscape := scanInDoubleQoutes(s)
+	next, nEscape := decodeEscapes(s, '"')
 	if next == '@' || next == '$' || next == '{' {
 		return s.begin, token.StringPart, s.src[s.begin : s.offset-nEscape]
 	}
