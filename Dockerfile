@@ -4,9 +4,9 @@ RUN apk add --no-cache git make
 
 ENV WORKDIR=/go/src/github.com/harukasan/ringo
 WORKDIR $WORKDIR
-COPY . $WORKDIR
+COPY Makefile $WORKDIR/Makefile
 
-RUN go-wrapper download ./...
+RUN make get-deps
 
 VOLUME $WORKDIR
 CMD ["go-wrapper", "run"]
