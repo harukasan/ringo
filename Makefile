@@ -18,8 +18,17 @@ cover-html: $(cover_file)
 coveralls: $(cover_file) $(gobin)/goveralls
 	$(gobin)/goveralls -coverprofile=$< -service=travis-ci
 
+report: report.xml
+
 gover.coverprofile: $(gobin)/gover
 	./gover.sh
+
+report.xml: $(gobin)/go-junit-report
+	go get ./...
+	go test -v ./... | $(gobin)/go-junit-report -set-exit-code > $@
+
+$(gobin)/go-junit-report:
+	go get github.com/jstemmer/go-junit-report
 
 $(gobin)/gover:
 	go get github.com/modocache/gover
@@ -33,4 +42,5 @@ $(gobin)/stringer:
 .PHONY: test \
 	cover-func \
 	cover-html \
-	coveralls
+	coveralls \
+	report
