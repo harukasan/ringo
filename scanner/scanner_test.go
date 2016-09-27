@@ -220,7 +220,7 @@ var rules = map[string][]struct {
 	`"\e"`:       {{0, token.String, []byte{0x1b}}},
 	`"\b"`:       {{0, token.String, []byte{0x08}}},
 	`"\s"`:       {{0, token.String, []byte{0x20}}},
-	`"\xff\xFF"`: {{0, token.String, []byte{0xff, 0xff}}},
+	`"\xf0\xFF"`: {{0, token.String, []byte{0xf0, 0xff}}},
 	`"\377\377"`: {{0, token.String, []byte{0xff, 0xff}}},
 	`"\ca"`:      {{0, token.String, []byte{'\a'}}},
 	`"\C-a"`:     {{0, token.String, []byte{'\a'}}},
