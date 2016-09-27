@@ -1,21 +1,22 @@
 gobin = $(GOPATH)/bin
+deps = $(gobin)/stringer
+cover_file = gover.coverprofile
 
-get-deps: $(gobin)/stringer
+get-deps: $(gobin)/gover $(gobin)/goveralls $(gobin)/stringer
 
-generate:
+test: $(deps)
 	go generate ./...
-
-test: generate
 	go test -v ./...
 
-cover: generate $(gobin)/gover gover.coverprofile
+cover-func: $(cover_file)
+	go tool cover -func=$<
 
-cover-html: cover
-	go tool cover -html=gover.coverprofile
-	@rm gover.coverprofile
+cover-html: $(cover_file)
+	go tool cover -html=$<
+	@rm $<
 
-coveralls: cover $(gobin)/goveralls
-	$(gobin)/goveralls -coverprofile=gover.coverprofile -service=travis-ci
+coveralls: $(cover_file) $(gobin)/goveralls
+	$(gobin)/goveralls -coverprofile=$< -service=travis-ci
 
 gover.coverprofile: $(gobin)/gover
 	./gover.sh
@@ -29,8 +30,7 @@ $(gobin)/goveralls:
 $(gobin)/stringer:
 	go get golang.org/x/tools/cmd/stringer
 
-.PHONY: generate \
-	test \
-	cover \
+.PHONY: test \
+	cover-func \
 	cover-html \
 	coveralls
