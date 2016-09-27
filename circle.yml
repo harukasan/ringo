@@ -1,0 +1,23 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  cache_directories:
+    - ~/cache
+  override:
+    - |
+      if [ -e ~/cache/docker_cache.tar.gz ]; then
+        gzip -cd ~/cache/docker_cache.tar.gz | docker load
+      fi
+      prev_id=$(docker images ringo -q)
+      docker build -t ringo:latest .
+      new_id=$(docker images ringo -q)
+      if [ "x$new_id" != "x$prev_id" ]; then
+        docker save ringo:latest | gzip -c > ~/cache/docker_cache.tar.gz
+      fi
+
+test:
+  override:
+    - docker run -v $(pwd):/go/src/github.com/harukasan/ringo ringo:latest make report
+    - cp report.xml $CIRCLE_TEST_REPORTS
