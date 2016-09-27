@@ -1,0 +1,25 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  cache_directories:
+    - ~/cache
+  override:
+    - |
+      set -x
+      mkdir -p ~/cache
+      if [ -e ~/cache/docker_cache.tar.gz ]; then
+        gzip -cd ~/cache/docker_cache.tar.gz | docker load
+      fi
+      prev_id=$(docker images -q ringo)
+      docker build -t ringo:latest .
+      new_id=$(docker images -q ringo)
+      if [ ! -e ~/cache/docker_cache.tar.gz -o "x${new_id}" != "x${prev_id}" ]; then
+        docker save golang:1.7.1-alpine ringo:latest | gzip -c > ~/cache/docker_cache.tar.gz
+      fi
+
+test:
+  override:
+    - docker run -v $(pwd):/go/src/github.com/harukasan/ringo ringo:latest make report
+    - cp report.xml $CIRCLE_TEST_REPORTS
