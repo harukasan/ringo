@@ -24,6 +24,7 @@ type Scanner struct {
 type scannerCtx struct {
 	nospace   bool          // whether the previous is not a space
 	stateScan stateScanFunc // scanner func for the special state
+	parent    *scannerCtx   // parent context
 }
 
 // scanning function for special state
@@ -34,10 +35,17 @@ func New(src []byte) *Scanner {
 	s := &Scanner{
 		src:    src,
 		offset: -1,
-		ctx:    &scannerCtx{},
+		ctx: &scannerCtx{
+			stateScan: stateCompStmts,
+		},
 	}
 	s.next()
 	return s
+}
+
+// NewString returns a initiazlied scanner with given string s.
+func NewString(s string) *Scanner {
+	return New([]byte(s))
 }
 
 func (s *Scanner) next() {
@@ -67,30 +75,38 @@ func (s *Scanner) failf(format string, v ...interface{}) {
 	debug.Printf("failf: %v", s.err)
 }
 
+func (s *Scanner) pushCtx(state stateScanFunc) {
+	s.ctx = &scannerCtx{
+		stateScan: state,
+		parent:    s.ctx,
+	}
+	debug.Printf("push: -> %#v", s.ctx)
+}
+
+func (s *Scanner) popCtx() {
+	s.ctx = s.ctx.parent
+	debug.Printf("pop: -> %#v", s.ctx)
+}
+
 // Scan reads and returns a parsed token position, type, and its literal.
 func (s *Scanner) Scan() (pos int, t token.Token, literal []byte) {
-StartScan:
-	if s.err == io.EOF {
-		pos, t, literal = s.offset, token.EOF, nil
-		return
-	}
-
-	if s.ctx.stateScan != nil {
-		pos, t, literal = s.ctx.stateScan(s)
-		if t != token.Continue {
-			return
+	t = token.Continue
+	for t == token.Continue {
+		if s.err == io.EOF {
+			pos, t, literal = s.offset, token.EOF, nil
+			break
 		}
-		// fallback to default scan if token.Continue is return
+		pos, t, literal = s.ctx.stateScan(s)
 	}
+	return
+}
 
+func stateCompStmts(s *Scanner) (pos int, t token.Token, literal []byte) {
 	s.begin = s.offset
 	if scan := scanners[s.char]; scan != nil {
 		s.next()
 		t, literal = scan(s)
-		if t == token.Continue {
-			goto StartScan
-		}
-		if t != token.NewLine {
+		if t != token.Continue && t != token.NewLine {
 			s.ctx.nospace = true
 		}
 		return s.begin, t, literal
@@ -123,48 +139,63 @@ func scanOne(tk token.Token) scanFunc {
 The scanner for speicfic token is picked up by the first letter of literal of
 token. Note that the scanner for 0-9, A-Z and a-z is set by below init func.
 */
-var scanners = [127]scanFunc{
-	0x09: skipWhiteSpaces,
-	'\n': scanNewLine,
-	0x0b: skipWhiteSpaces,
-	0x0c: skipWhiteSpaces,
-	0x0d: skipWhiteSpaces,
-	'!':  scanNot,
-	' ':  skipWhiteSpaces,
-	'"':  scanDoubleQuote,
-	'#':  scanComment,
-	'$':  scanDollar,
-	'%':  scanMod,
-	'&':  scanAmp,
-	'\'': scanSingleQuote,
-	'(':  scanOne(token.LParen),
-	')':  scanOne(token.RParen),
-	'*':  scanAsterisk,
-	'+':  scanPlus,
-	',':  scanOne(token.Comma),
-	'-':  scanMinus,
-	'.':  scanDot,
-	'/':  scanDiv,
-	':':  scanColon,
-	';':  scanNewLine,
-	'<':  scanLt,
-	'=':  scanEq,
-	'>':  scanGt,
-	'?':  scanOne(token.Question),
-	'@':  scanAt,
-	'[':  scanBracket,
-	'\\': scanEscSeq,
-	']':  scanOne(token.RBracket),
-	'^':  scanXor,
-	'_':  scanUnderscore,
-	'{':  scanOne(token.LBrace),
-	'|':  scanOr,
-	'}':  scanOne(token.RBrace),
-	'~':  scanOne(token.Invert),
-}
 
 /* set scanners for 0-9, A-Z, and a-z. */
+var scanners [127]scanFunc
+
+var escapes = [127]byte{
+	'n': 0x0a,
+	't': 0x09,
+	'r': 0x0d,
+	'f': 0x0c,
+	'v': 0x0b,
+	'a': 0x07,
+	'e': 0x1b,
+	'b': 0x08,
+	's': 0x20,
+}
+
 func init() {
+	scanners = [...]scanFunc{
+		0x09: skipWhiteSpaces,
+		'\n': scanNewLine,
+		0x0b: skipWhiteSpaces,
+		0x0c: skipWhiteSpaces,
+		0x0d: skipWhiteSpaces,
+		'!':  scanNot,
+		' ':  skipWhiteSpaces,
+		'"':  scanDoubleQuote,
+		'#':  scanComment,
+		'$':  scanDollar,
+		'%':  scanMod,
+		'&':  scanAmp,
+		'\'': scanSingleQuote,
+		'(':  scanOne(token.LParen),
+		')':  scanOne(token.RParen),
+		'*':  scanAsterisk,
+		'+':  scanPlus,
+		',':  scanOne(token.Comma),
+		'-':  scanMinus,
+		'.':  scanDot,
+		'/':  scanDiv,
+		':':  scanColon,
+		';':  scanNewLine,
+		'<':  scanLt,
+		'=':  scanEq,
+		'>':  scanGt,
+		'?':  scanOne(token.Question),
+		'@':  scanAt,
+		'[':  scanBracket,
+		'\\': scanEscSeq,
+		']':  scanOne(token.RBracket),
+		'^':  scanXor,
+		'_':  scanUnderscore,
+		'{':  scanOne(token.LBrace),
+		'|':  scanOr,
+		'}':  scanOne(token.RBrace),
+		'~':  scanOne(token.Invert),
+	}
+	/* set scanners for 0-9, A-Z, and a-z. */
 	scanners['0'] = scanZero
 	for i := '1'; i <= '9'; i++ {
 		scanners[i] = scanNonZero
@@ -203,12 +234,182 @@ func scanNot(s *Scanner) (token.Token, []byte) {
 	return token.Not, nil
 }
 
+func isInsertPrefix(c byte) bool {
+	return c == '@' || c == '$' || c == '{'
+}
+
 func scanDoubleQuote(s *Scanner) (token.Token, []byte) {
-	for s.char != '"' && s.err == nil {
+	t := token.String
+	next, rOffset := decodeEscapes(s, '"')
+	switch {
+	case isInsertPrefix(next):
+		t = token.StringPart
+		s.pushCtx(stateInDoubleQoutes)
+	case next == '"':
 		s.next()
 	}
+	off := s.offset - rOffset
+	if off > s.begin+1 {
+		off--
+	}
+	return t, s.src[s.begin+1 : off]
+}
+
+func replace(s *Scanner, c byte, offset int) {
+	s.src[s.offset-offset] = c
 	s.next()
-	return token.StringPart, s.src[s.begin:s.offset]
+}
+
+func decodeEscapes(s *Scanner, term byte) (byte, int) {
+	var skip int
+	for s.char != term && s.err == nil {
+		switch s.char {
+		case '#':
+			next := s.peek(2)[1]
+			if isInsertPrefix(next) {
+				return next, skip
+			}
+		case '\\':
+			skip = decodeEscape(s, skip)
+		default:
+			replace(s, s.char, skip)
+		}
+	}
+	return s.char, skip
+}
+
+func decodeEscape(s *Scanner, skip int) int {
+	skip++
+	s.next()
+	if v := escapes[s.char]; v != 0 {
+		replace(s, v, skip)
+		return skip
+	}
+	var n int
+	c := s.char
+	switch c {
+	case '\n':
+		n = 2
+	case '0', '1', '2', '3', '4', '5', '6', '7':
+		n, c = decodeOctalEsc(s)
+	case 'x':
+		skip++
+		s.next()
+		n, c = decodeHexEsc(s)
+	case 'C':
+		skip++
+		s.next()
+		if s.char != '-' {
+			s.failf("invalid escape")
+			return skip
+		}
+		skip++
+		s.next()
+		c = decodeCtrlEsc(s.char)
+	case 'c':
+		skip++
+		s.next()
+		c = decodeCtrlEsc(s.char)
+	}
+	for i := 1; i < n; i++ {
+		skip++
+		s.next()
+	}
+	replace(s, c, skip)
+	return skip
+}
+
+func decodeCtrlEsc(c byte) byte {
+	if c == '?' {
+		return 0x7f
+	}
+	if v := escapes[c]; v != 0 {
+		c = v
+	}
+	return c & 0x9f
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func decodeOctalEsc(s *Scanner) (n int, v byte) {
+	m := min(3, len(s.src)-s.offset)
+	for n = 0; n < m; n++ {
+		c := s.src[s.offset+n]
+		if !token.IsOctadecimal(c) {
+			break
+		}
+		v = v*8 + (c - '0')
+	}
+	if n == 0 {
+		s.failf("invalid octal escape")
+	}
+	return
+}
+
+func decodeHexEsc(s *Scanner) (n int, v byte) {
+	m := min(2, len(s.src)-s.offset)
+	for n = 0; n < m; n++ {
+		c := s.src[s.offset+n]
+		var d byte
+		switch {
+		case '0' <= c && c <= '9':
+			d = c - '0'
+		case 'A' <= c && c <= 'F':
+			d = c - 'A' + 10
+		case 'a' <= c && c <= 'f':
+			d = c - 'a' + 10
+		default:
+			if n == 0 {
+				s.failf("invalid hex escape")
+			}
+			return
+		}
+		v = v*16 + d
+	}
+	return
+}
+
+func stateInDoubleQoutes(s *Scanner) (int, token.Token, []byte) {
+	if s.char == '#' {
+		s.next()
+		s.begin = s.offset
+		c := s.char
+		s.next()
+		switch c {
+		case '@':
+			t, lit := scanAt(s)
+			return s.begin - 1, t, lit
+		case '$':
+			t, lit := scanGlobalVar(s)
+			return s.begin - 1, t, lit
+		case '{':
+			s.pushCtx(stateInsertStmts)
+			return s.begin - 1, token.InsertBegin, nil
+		}
+	}
+	s.begin = s.offset
+	next, nEscape := decodeEscapes(s, '"')
+	if next == '@' || next == '$' || next == '{' {
+		return s.begin, token.StringPart, s.src[s.begin : s.offset-nEscape]
+	}
+	s.next()
+	s.popCtx()
+	return s.begin, token.String, s.src[s.begin : s.offset-nEscape-1]
+}
+
+func stateInsertStmts(s *Scanner) (pos int, t token.Token, literal []byte) {
+	s.begin = s.offset
+	if s.char == '}' {
+		s.next()
+		s.popCtx()
+		return s.begin, token.InsertEnd, nil
+	}
+	return stateCompStmts(s)
 }
 
 func scanComment(s *Scanner) (token.Token, []byte) {
@@ -217,6 +418,10 @@ func scanComment(s *Scanner) (token.Token, []byte) {
 }
 
 func scanDollar(s *Scanner) (token.Token, []byte) {
+	return scanGlobalVar(s)
+}
+
+func scanGlobalVar(s *Scanner) (token.Token, []byte) {
 	if !token.IsIdentStart(s.char) {
 		return token.Illegal, s.src[s.begin:s.offset]
 	}
@@ -252,14 +457,18 @@ func scanAmp(s *Scanner) (token.Token, []byte) {
 }
 
 func scanSingleQuote(s *Scanner) (token.Token, []byte) {
+	rOffset := 0
 	for s.char != '\'' && s.err == nil {
 		if s.char == '\\' {
 			s.next()
+			if s.char == '\\' || s.char == '\'' {
+				rOffset++
+			}
 		}
+		s.src[s.offset-rOffset] = s.char
 		s.next()
 	}
-	s.next()
-	return token.StringPart, s.src[s.begin:s.offset]
+	return token.String, s.src[s.begin+1 : s.offset-rOffset]
 }
 
 func scanAsterisk(s *Scanner) (token.Token, []byte) {
@@ -402,11 +611,24 @@ func scanHeredocBegin(s *Scanner) (token.Token, []byte) {
 	default:
 		return token.Continue, nil
 	}
+
+	var quote byte
+	if s.char == '\'' {
+		quote = s.char
+		s.next()
+		termBegin = s.offset
+	}
 	for token.IsIdent(s.char) {
 		s.next()
 	}
 	term := s.src[termBegin:s.offset]
-	s.ctx.stateScan = stateHeredocFirstLine(term, indent)
+	if quote != 0 {
+		if s.char != quote {
+			s.failf("invalid heredoc identifier")
+		}
+		s.next()
+	}
+	s.pushCtx(stateHeredocFirstLine(term, indent))
 	return token.HeredocBegin, s.src[s.begin:s.offset]
 }
 
@@ -415,11 +637,12 @@ func stateHeredocFirstLine(term []byte, indent bool) stateScanFunc {
 		if s.char == '\n' {
 			begin := s.offset
 			s.next()
-			s.ctx.stateScan = stateInHeredoc(term, indent)
+			s.popCtx()
+			s.pushCtx(stateInHeredoc(term, indent))
 			t, literal := scanNewLine(s)
 			return begin, t, literal
 		}
-		return 0, token.Continue, nil
+		return stateCompStmts(s)
 	}
 }
 
@@ -440,7 +663,7 @@ func stateInHeredoc(term []byte, indent bool) stateScanFunc {
 						s.next()
 					}
 					if s.char == '\n' || s.err == io.EOF {
-						s.ctx.stateScan = nil
+						s.popCtx()
 						return begin, token.HeredocPart, s.src[begin:lbegin]
 					}
 				}
