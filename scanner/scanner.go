@@ -639,8 +639,7 @@ func stateHeredocFirstLine(term []byte, indent bool) stateScanFunc {
 			s.next()
 			s.popCtx()
 			s.pushCtx(stateInHeredoc(term, indent))
-			t, literal := scanNewLine(s)
-			return begin, t, literal
+			return begin, token.NewLine, nil
 		}
 		return stateCompStmts(s)
 	}
@@ -648,11 +647,28 @@ func stateHeredocFirstLine(term []byte, indent bool) stateScanFunc {
 
 func stateInHeredoc(term []byte, indent bool) stateScanFunc {
 	return func(s *Scanner) (int, token.Token, []byte) {
-		begin := s.offset
-		bol := true // begin of the line
-		for {
-			if bol {
-				lbegin := s.offset
+		if s.char == '#' {
+			s.next()
+			s.begin = s.offset
+			c := s.char
+			s.next()
+			switch c {
+			case '@':
+				t, lit := scanAt(s)
+				return s.begin - 1, t, lit
+			case '$':
+				t, lit := scanGlobalVar(s)
+				return s.begin - 1, t, lit
+			case '{':
+				s.pushCtx(stateInsertStmts)
+				return s.begin - 1, token.InsertBegin, nil
+			}
+		}
+
+		s.begin = s.offset
+		for s.err == nil {
+			if s.src[s.offset-1] == '\n' {
+				tOff := s.offset
 				if indent {
 					for token.IsWhiteSpace(s.char) {
 						s.next()
@@ -663,17 +679,22 @@ func stateInHeredoc(term []byte, indent bool) stateScanFunc {
 						s.next()
 					}
 					if s.char == '\n' || s.err == io.EOF {
+						if s.char == '\n' {
+							s.next()
+						}
 						s.popCtx()
-						return begin, token.HeredocPart, s.src[begin:lbegin]
+						return s.begin, token.HeredocEnd, s.src[s.begin:tOff]
 					}
 				}
 			}
-			if s.err != nil {
-				return begin, token.Illegal, s.src[begin:]
+
+			next, skip := decodeEscapes(s, '\n')
+			if next == '@' || next == '$' || next == '{' {
+				return s.begin, token.HeredocPart, s.src[s.begin : s.offset-skip]
 			}
-			bol = (s.char == '\n')
 			s.next()
 		}
+		return s.begin, token.Illegal, nil
 	}
 }
 
