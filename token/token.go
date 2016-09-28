@@ -24,6 +24,7 @@ const (
 	StringPart
 	HeredocBegin
 	HeredocPart
+	HeredocEnd
 	InsertBegin
 	InsertEnd
 

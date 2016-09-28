@@ -13,6 +13,7 @@ var rules = map[string][]struct {
 	token   token.Token
 	literal []byte
 }{
+
 	// new line
 	"\n":   {{0, token.NewLine, nil}},
 	"\r\n": {{1, token.NewLine, nil}},
@@ -237,27 +238,47 @@ var rules = map[string][]struct {
 		{8, token.Comma, nil},
 		{10, token.IdentLocalVar, []byte("x")},
 		{11, token.NewLine, nil},
-		{12, token.HeredocPart, []byte("abc\n\n")},
-		{21, token.NewLine, nil},
+		{12, token.HeredocEnd, []byte("abc\n\n")},
+		{22, token.EOF, nil},
 	},
 	"<<-TEXT\n  TEXT\n": {
 		{0, token.HeredocBegin, []byte("<<-TEXT")},
 		{7, token.NewLine, nil},
-		{8, token.HeredocPart, nil},
-		{14, token.NewLine, nil},
+		{8, token.HeredocEnd, nil},
+		{15, token.EOF, nil},
 	},
 	"<<-'TEXT'\n  TEXT\n": {
 		{0, token.HeredocBegin, []byte("<<-'TEXT'")},
 		{9, token.NewLine, nil},
-		{10, token.HeredocPart, nil},
-		{16, token.NewLine, nil},
+		{10, token.HeredocEnd, nil},
+		{17, token.EOF, nil},
 	},
 	"1 <<1\n1\n": {
 		{0, token.DecimalInteger, []byte("1")},
 		{2, token.HeredocBegin, []byte("<<1")},
 		{5, token.NewLine, nil},
-		{6, token.HeredocPart, nil},
-		{7, token.NewLine, nil},
+		{6, token.HeredocEnd, nil},
+		{8, token.EOF, nil},
+	},
+	"<<TEXT\n#@a #$b\nTEXT\n": {
+		{0, token.HeredocBegin, []byte("<<TEXT")},
+		{6, token.NewLine, nil},
+		{7, token.IdentInstanceVar, []byte("@a")},
+		{10, token.HeredocPart, []byte(" ")},
+		{11, token.IdentGlobalVar, []byte("$b")},
+		{14, token.HeredocEnd, []byte("\n")},
+		{20, token.EOF, nil},
+	},
+	"<<TEXT\n#{<<TEXT\nTEXT\n}\nTEXT\n": {
+		{0, token.HeredocBegin, []byte("<<TEXT")},
+		{6, token.NewLine, nil},
+		{7, token.InsertBegin, nil},
+		{9, token.HeredocBegin, []byte("<<TEXT")},
+		{15, token.NewLine, nil},
+		{16, token.HeredocEnd, nil},
+		{21, token.InsertEnd, nil},
+		{22, token.HeredocEnd, []byte("\n")},
+		{28, token.EOF, nil},
 	},
 
 	// ident
