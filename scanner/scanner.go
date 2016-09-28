@@ -60,6 +60,12 @@ func (s *Scanner) next() {
 	debug.Printf("next: len=%v, offset=%v, char=%v", len(s.src), s.offset, s.char)
 }
 
+func (s *Scanner) skip(n int) {
+	for i := 0; i < n; i++ {
+		s.next()
+	}
+}
+
 func (s *Scanner) peek(n int) []byte {
 	if len(s.src) < s.offset+n {
 		return nil
@@ -115,13 +121,7 @@ func stateCompStmts(s *Scanner) (pos int, t token.Token, literal []byte) {
 }
 
 func (s *Scanner) skipLine() {
-	for {
-		if s.err != nil {
-			return
-		}
-		if s.char == '\n' {
-			return
-		}
+	for s.err == nil && s.char != '\n' {
 		s.next()
 	}
 }
@@ -675,9 +675,7 @@ func stateInHeredoc(term []byte, indent bool) stateScanFunc {
 					}
 				}
 				if bytes.HasPrefix(s.src[s.offset:], term) {
-					for i := 0; i < len(term); i++ {
-						s.next()
-					}
+					s.skip(len(term))
 					if s.char == '\n' || s.err == io.EOF {
 						if s.char == '\n' {
 							s.next()
@@ -733,9 +731,7 @@ func skipMultiLineComment(s *Scanner) {
 		if s.char == '=' {
 			s.next()
 			if bytes.HasPrefix(s.src[s.offset:], []byte("end")) {
-				s.next()
-				s.next()
-				s.next()
+				s.skip(3)
 				if token.IsWhiteSpace(s.char) {
 					s.skipLine()
 				}
@@ -832,12 +828,7 @@ func scanXor(s *Scanner) (token.Token, []byte) {
 func scanUnderscore(s *Scanner) (token.Token, []byte) {
 	if s.offset < 2 || s.src[s.offset-2] == '\n' {
 		if bytes.HasPrefix(s.src[s.offset:], []byte("_END__")) {
-			s.next() // _
-			s.next() // E
-			s.next() // N
-			s.next() // D
-			s.next() // _
-			s.next() // _
+			s.skip(6) // skip "_END__"
 			if s.char == '\r' {
 				if p := s.peek(2); p != nil && p[1] == '\n' {
 					s.next()
