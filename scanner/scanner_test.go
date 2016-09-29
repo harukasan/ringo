@@ -229,7 +229,15 @@ var rules = map[string][]struct {
 
 	`'a'`:      {{0, token.String, []byte(`a`)}},
 	`'\''`:     {{0, token.String, []byte(`'`)}},
+	`'\\'`:     {{0, token.String, []byte(`\`)}},
 	`'\a\\\''`: {{0, token.String, []byte(`\a\'`)}},
+	`%q{a}`:    {{0, token.String, []byte(`a`)}},
+	`%q(a)`:    {{0, token.String, []byte(`a`)}},
+	`%q[a]`:    {{0, token.String, []byte(`a`)}},
+	`%q<a>`:    {{0, token.String, []byte(`a`)}},
+	`%q{\\}`:   {{0, token.String, []byte(`\`)}},
+	`%q{\}}`:   {{0, token.String, []byte(`}`)}},
+	`%q<\}>`:   {{0, token.String, []byte(`\}`)}},
 
 	// heredoc
 	"a <<TEXT, x\nabc\n\nTEXT\n": {
