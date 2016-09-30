@@ -34,20 +34,9 @@ var stateDoubleQuotedStringIn = [...]stateScanFunc{
 func stateDoubleQuotedStringInFunc(term byte) stateScanFunc {
 	return func(s *Scanner) (int, token.Token, []byte) {
 		if s.char == '#' {
-			s.next()
-			s.begin = s.offset
-			c := s.char
-			s.next()
-			switch c {
-			case '@':
-				t, lit := scanAt(s)
-				return s.begin - 1, t, lit
-			case '$':
-				t, lit := scanGlobalVar(s)
-				return s.begin - 1, t, lit
-			case '{':
-				s.pushCtx(stateInsertStmts)
-				return s.begin - 1, token.InsertBegin, nil
+			p, t, lit := scanInsert(s)
+			if t != token.Continue {
+				return p, t, lit
 			}
 		}
 		s.begin = s.offset
@@ -59,6 +48,25 @@ func stateDoubleQuotedStringInFunc(term byte) stateScanFunc {
 		s.popCtx()
 		return s.begin, token.String, s.src[s.begin : s.offset-nEscape-1]
 	}
+}
+
+func scanInsert(s *Scanner) (int, token.Token, []byte) {
+	s.next()
+	s.begin = s.offset
+	c := s.char
+	s.next()
+	switch c {
+	case '@':
+		t, lit := scanAt(s)
+		return s.begin - 1, t, lit
+	case '$':
+		t, lit := scanGlobalVar(s)
+		return s.begin - 1, t, lit
+	case '{':
+		s.pushCtx(stateInsertStmts)
+		return s.begin - 1, token.InsertBegin, nil
+	}
+	return 0, token.Continue, nil
 }
 
 func replace(s *Scanner, c byte, offset int) {
@@ -262,20 +270,9 @@ func stateHeredocFirstLine(term []byte, indent bool) stateScanFunc {
 func stateInHeredoc(term []byte, indent bool) stateScanFunc {
 	return func(s *Scanner) (int, token.Token, []byte) {
 		if s.char == '#' {
-			s.next()
-			s.begin = s.offset
-			c := s.char
-			s.next()
-			switch c {
-			case '@':
-				t, lit := scanAt(s)
-				return s.begin - 1, t, lit
-			case '$':
-				t, lit := scanGlobalVar(s)
-				return s.begin - 1, t, lit
-			case '{':
-				s.pushCtx(stateInsertStmts)
-				return s.begin - 1, token.InsertBegin, nil
+			p, t, lit := scanInsert(s)
+			if t != token.Continue {
+				return p, t, lit
 			}
 		}
 
