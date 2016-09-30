@@ -212,6 +212,7 @@ func scanSingleQuotedString(s *Scanner, term byte, head int) (token.Token, []byt
 	return token.String, s.src[s.begin+head : s.offset-skip]
 }
 
+// TODO: cyclomatic complexity >= 12
 func scanHeredocBegin(s *Scanner) (token.Token, []byte) {
 	indent := false
 	termBegin := s.offset

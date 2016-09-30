@@ -1,4 +1,5 @@
 linter:
   gometalinter:
     options:
+      cyclo-over: 12
       dupl-threshold: 100
