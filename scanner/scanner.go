@@ -456,25 +456,23 @@ func closeBracket(c byte) byte {
 	case '<':
 		return '>'
 	}
-	return 0
+	return c
 }
 
 func scanPercent(s *Scanner) (token.Token, []byte) {
 	switch s.char {
-	case '{', '(', '[', '<':
-		term := closeBracket(s.char)
-		s.next()
-		return scanDoubleQuotedString(s, term, 2)
 	case 'Q':
-		s.next()
-		if s.char == '{' || s.char == '(' || s.char == '[' || s.char == '<' {
+		p := s.peek(2)
+		if p != nil && !token.IsAlnum(p[1]) { // %Q!...!
+			s.next()
 			term := closeBracket(s.char)
 			s.next()
 			return scanDoubleQuotedString(s, term, 3)
 		}
 	case 'q':
-		s.next()
-		if s.char == '{' || s.char == '(' || s.char == '[' || s.char == '<' {
+		p := s.peek(2)
+		if p != nil && !token.IsAlnum(p[1]) { // %q!...!
+			s.next()
 			term := closeBracket(s.char)
 			s.next()
 			return scanSingleQuotedString(s, term, 3)
@@ -482,6 +480,11 @@ func scanPercent(s *Scanner) (token.Token, []byte) {
 	case '=': // %=
 		s.next()
 		return token.AssignMod, nil
+	}
+	if s.err == nil && !token.IsAlnum(s.char) { // %!...!
+		term := closeBracket(s.char)
+		s.next()
+		return scanDoubleQuotedString(s, term, 2)
 	}
 	return token.Mod, nil
 }

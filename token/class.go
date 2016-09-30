@@ -53,3 +53,8 @@ func IsIdentStart(c byte) bool {
 func IsIdent(c byte) bool {
 	return IsLetter(c) || IsDecimal(c) || c == '_'
 }
+
+// IsAlnum returns whether the character is a letter or a number.
+func IsAlnum(c byte) bool {
+	return IsDecimal(c) || IsLetter(c)
+}
