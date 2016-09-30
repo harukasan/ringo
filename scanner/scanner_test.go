@@ -226,10 +226,31 @@ var rules = map[string][]struct {
 	`"\ca"`:      {{0, token.String, []byte{'\a'}}},
 	`"\C-a"`:     {{0, token.String, []byte{'\a'}}},
 	"\"\\\n\"":   {{0, token.String, []byte(``)}},
+	`%!\n!`:      {{0, token.String, []byte{0x0a}}},
+	`%{\n}`:      {{0, token.String, []byte{0x0a}}},
+	`%(\n)`:      {{0, token.String, []byte{0x0a}}},
+	`%[\n]`:      {{0, token.String, []byte{0x0a}}},
+	`%<\n>`:      {{0, token.String, []byte{0x0a}}},
+	`%Q!\n!`:     {{0, token.String, []byte{0x0a}}},
+	`%Q{\n}`:     {{0, token.String, []byte{0x0a}}},
+
+	`1%Q`: {
+		{0, token.DecimalInteger, []byte(`1`)},
+		{1, token.Mod, nil},
+		{2, token.IdentConst, []byte(`Q`)},
+	},
 
 	`'a'`:      {{0, token.String, []byte(`a`)}},
 	`'\''`:     {{0, token.String, []byte(`'`)}},
+	`'\\'`:     {{0, token.String, []byte(`\`)}},
 	`'\a\\\''`: {{0, token.String, []byte(`\a\'`)}},
+	`%q{a}`:    {{0, token.String, []byte(`a`)}},
+	`%q(a)`:    {{0, token.String, []byte(`a`)}},
+	`%q[a]`:    {{0, token.String, []byte(`a`)}},
+	`%q<a>`:    {{0, token.String, []byte(`a`)}},
+	`%q{\\}`:   {{0, token.String, []byte(`\`)}},
+	`%q{\}}`:   {{0, token.String, []byte(`}`)}},
+	`%q<\}>`:   {{0, token.String, []byte(`\}`)}},
 
 	// heredoc
 	"a <<TEXT, x\nabc\n\nTEXT\n": {

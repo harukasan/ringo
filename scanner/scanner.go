@@ -167,7 +167,7 @@ func init() {
 		'"':  scanDoubleQuote,
 		'#':  scanComment,
 		'$':  scanDollar,
-		'%':  scanMod,
+		'%':  scanPercent,
 		'&':  scanAmp,
 		'\'': scanSingleQuote,
 		'(':  scanOne(token.LParen),
@@ -239,20 +239,61 @@ func isInsertPrefix(c byte) bool {
 }
 
 func scanDoubleQuote(s *Scanner) (token.Token, []byte) {
+	return scanDoubleQuotedString(s, '"', 1)
+}
+
+func scanDoubleQuotedString(s *Scanner, term byte, head int) (token.Token, []byte) {
 	t := token.String
-	next, rOffset := decodeEscapes(s, '"')
+	next, rOffset := decodeEscapes(s, term)
 	switch {
 	case isInsertPrefix(next):
 		t = token.StringPart
-		s.pushCtx(stateInDoubleQoutes)
-	case next == '"':
+		s.pushCtx(stateDoubleQuotedStringIn[term])
+	case next == term:
 		s.next()
 	}
 	off := s.offset - rOffset
 	if off > s.begin+1 {
 		off--
 	}
-	return t, s.src[s.begin+1 : off]
+	return t, s.src[s.begin+head : off]
+}
+
+var stateDoubleQuotedStringIn = [...]stateScanFunc{
+	'"': stateDoubleQuotedStringInFunc('"'),
+	')': stateDoubleQuotedStringInFunc(')'),
+	']': stateDoubleQuotedStringInFunc(']'),
+	'>': stateDoubleQuotedStringInFunc('>'),
+}
+
+func stateDoubleQuotedStringInFunc(term byte) stateScanFunc {
+	return func(s *Scanner) (int, token.Token, []byte) {
+		if s.char == '#' {
+			s.next()
+			s.begin = s.offset
+			c := s.char
+			s.next()
+			switch c {
+			case '@':
+				t, lit := scanAt(s)
+				return s.begin - 1, t, lit
+			case '$':
+				t, lit := scanGlobalVar(s)
+				return s.begin - 1, t, lit
+			case '{':
+				s.pushCtx(stateInsertStmts)
+				return s.begin - 1, token.InsertBegin, nil
+			}
+		}
+		s.begin = s.offset
+		next, nEscape := decodeEscapes(s, '"')
+		if next == '@' || next == '$' || next == '{' {
+			return s.begin, token.StringPart, s.src[s.begin : s.offset-nEscape]
+		}
+		s.next()
+		s.popCtx()
+		return s.begin, token.String, s.src[s.begin : s.offset-nEscape-1]
+	}
 }
 
 func replace(s *Scanner, c byte, offset int) {
@@ -374,34 +415,6 @@ func decodeHexEsc(s *Scanner) (n int, v byte) {
 	return
 }
 
-func stateInDoubleQoutes(s *Scanner) (int, token.Token, []byte) {
-	if s.char == '#' {
-		s.next()
-		s.begin = s.offset
-		c := s.char
-		s.next()
-		switch c {
-		case '@':
-			t, lit := scanAt(s)
-			return s.begin - 1, t, lit
-		case '$':
-			t, lit := scanGlobalVar(s)
-			return s.begin - 1, t, lit
-		case '{':
-			s.pushCtx(stateInsertStmts)
-			return s.begin - 1, token.InsertBegin, nil
-		}
-	}
-	s.begin = s.offset
-	next, nEscape := decodeEscapes(s, '"')
-	if next == '@' || next == '$' || next == '{' {
-		return s.begin, token.StringPart, s.src[s.begin : s.offset-nEscape]
-	}
-	s.next()
-	s.popCtx()
-	return s.begin, token.String, s.src[s.begin : s.offset-nEscape-1]
-}
-
 func stateInsertStmts(s *Scanner) (pos int, t token.Token, literal []byte) {
 	s.begin = s.offset
 	if s.char == '}' {
@@ -432,10 +445,46 @@ func scanGlobalVar(s *Scanner) (token.Token, []byte) {
 	return token.IdentGlobalVar, s.src[s.begin:s.offset]
 }
 
-func scanMod(s *Scanner) (token.Token, []byte) {
-	if s.char == '=' { // %=
+func closeBracket(c byte) byte {
+	switch c {
+	case '{':
+		return '}'
+	case '(':
+		return ')'
+	case '[':
+		return ']'
+	case '<':
+		return '>'
+	}
+	return c
+}
+
+func scanPercent(s *Scanner) (token.Token, []byte) {
+	switch s.char {
+	case 'Q':
+		p := s.peek(2)
+		if p != nil && !token.IsAlnum(p[1]) { // %Q!...!
+			s.next()
+			term := closeBracket(s.char)
+			s.next()
+			return scanDoubleQuotedString(s, term, 3)
+		}
+	case 'q':
+		p := s.peek(2)
+		if p != nil && !token.IsAlnum(p[1]) { // %q!...!
+			s.next()
+			term := closeBracket(s.char)
+			s.next()
+			return scanSingleQuotedString(s, term, 3)
+		}
+	case '=': // %=
 		s.next()
 		return token.AssignMod, nil
+	}
+	if s.err == nil && !token.IsAlnum(s.char) { // %!...!
+		term := closeBracket(s.char)
+		s.next()
+		return scanDoubleQuotedString(s, term, 2)
 	}
 	return token.Mod, nil
 }
@@ -457,18 +506,21 @@ func scanAmp(s *Scanner) (token.Token, []byte) {
 }
 
 func scanSingleQuote(s *Scanner) (token.Token, []byte) {
-	rOffset := 0
-	for s.char != '\'' && s.err == nil {
+	return scanSingleQuotedString(s, '\'', 1)
+}
+
+func scanSingleQuotedString(s *Scanner, term byte, head int) (token.Token, []byte) {
+	var skip int
+	for s.char != term && s.err == nil {
 		if s.char == '\\' {
 			s.next()
-			if s.char == '\\' || s.char == '\'' {
-				rOffset++
+			if s.char == '\\' || s.char == term {
+				skip++
 			}
 		}
-		s.src[s.offset-rOffset] = s.char
-		s.next()
+		replace(s, s.char, skip)
 	}
-	return token.String, s.src[s.begin+1 : s.offset-rOffset]
+	return token.String, s.src[s.begin+head : s.offset-skip]
 }
 
 func scanAsterisk(s *Scanner) (token.Token, []byte) {
