@@ -239,20 +239,61 @@ func isInsertPrefix(c byte) bool {
 }
 
 func scanDoubleQuote(s *Scanner) (token.Token, []byte) {
+	return scanDoubleQuotedString(s, '"', 1)
+}
+
+func scanDoubleQuotedString(s *Scanner, term byte, head int) (token.Token, []byte) {
 	t := token.String
-	next, rOffset := decodeEscapes(s, '"')
+	next, rOffset := decodeEscapes(s, term)
 	switch {
 	case isInsertPrefix(next):
 		t = token.StringPart
-		s.pushCtx(stateInDoubleQoutes)
-	case next == '"':
+		s.pushCtx(stateDoubleQuotedStringIn[term])
+	case next == term:
 		s.next()
 	}
 	off := s.offset - rOffset
 	if off > s.begin+1 {
 		off--
 	}
-	return t, s.src[s.begin+1 : off]
+	return t, s.src[s.begin+head : off]
+}
+
+var stateDoubleQuotedStringIn = [...]stateScanFunc{
+	'"': stateDoubleQuotedStringInFunc('"'),
+	')': stateDoubleQuotedStringInFunc(')'),
+	']': stateDoubleQuotedStringInFunc(']'),
+	'>': stateDoubleQuotedStringInFunc('>'),
+}
+
+func stateDoubleQuotedStringInFunc(term byte) stateScanFunc {
+	return func(s *Scanner) (int, token.Token, []byte) {
+		if s.char == '#' {
+			s.next()
+			s.begin = s.offset
+			c := s.char
+			s.next()
+			switch c {
+			case '@':
+				t, lit := scanAt(s)
+				return s.begin - 1, t, lit
+			case '$':
+				t, lit := scanGlobalVar(s)
+				return s.begin - 1, t, lit
+			case '{':
+				s.pushCtx(stateInsertStmts)
+				return s.begin - 1, token.InsertBegin, nil
+			}
+		}
+		s.begin = s.offset
+		next, nEscape := decodeEscapes(s, '"')
+		if next == '@' || next == '$' || next == '{' {
+			return s.begin, token.StringPart, s.src[s.begin : s.offset-nEscape]
+		}
+		s.next()
+		s.popCtx()
+		return s.begin, token.String, s.src[s.begin : s.offset-nEscape-1]
+	}
 }
 
 func replace(s *Scanner, c byte, offset int) {
@@ -374,34 +415,6 @@ func decodeHexEsc(s *Scanner) (n int, v byte) {
 	return
 }
 
-func stateInDoubleQoutes(s *Scanner) (int, token.Token, []byte) {
-	if s.char == '#' {
-		s.next()
-		s.begin = s.offset
-		c := s.char
-		s.next()
-		switch c {
-		case '@':
-			t, lit := scanAt(s)
-			return s.begin - 1, t, lit
-		case '$':
-			t, lit := scanGlobalVar(s)
-			return s.begin - 1, t, lit
-		case '{':
-			s.pushCtx(stateInsertStmts)
-			return s.begin - 1, token.InsertBegin, nil
-		}
-	}
-	s.begin = s.offset
-	next, nEscape := decodeEscapes(s, '"')
-	if next == '@' || next == '$' || next == '{' {
-		return s.begin, token.StringPart, s.src[s.begin : s.offset-nEscape]
-	}
-	s.next()
-	s.popCtx()
-	return s.begin, token.String, s.src[s.begin : s.offset-nEscape-1]
-}
-
 func stateInsertStmts(s *Scanner) (pos int, t token.Token, literal []byte) {
 	s.begin = s.offset
 	if s.char == '}' {
@@ -448,6 +461,17 @@ func closeBracket(c byte) byte {
 
 func scanPercent(s *Scanner) (token.Token, []byte) {
 	switch s.char {
+	case '{', '(', '[', '<':
+		term := closeBracket(s.char)
+		s.next()
+		return scanDoubleQuotedString(s, term, 2)
+	case 'Q':
+		s.next()
+		if s.char == '{' || s.char == '(' || s.char == '[' || s.char == '<' {
+			term := closeBracket(s.char)
+			s.next()
+			return scanDoubleQuotedString(s, term, 3)
+		}
 	case 'q':
 		s.next()
 		if s.char == '{' || s.char == '(' || s.char == '[' || s.char == '<' {

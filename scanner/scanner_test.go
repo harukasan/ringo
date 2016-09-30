@@ -226,6 +226,11 @@ var rules = map[string][]struct {
 	`"\ca"`:      {{0, token.String, []byte{'\a'}}},
 	`"\C-a"`:     {{0, token.String, []byte{'\a'}}},
 	"\"\\\n\"":   {{0, token.String, []byte(``)}},
+	`%{\n}`:      {{0, token.String, []byte{0x0a}}},
+	`%(\n)`:      {{0, token.String, []byte{0x0a}}},
+	`%[\n]`:      {{0, token.String, []byte{0x0a}}},
+	`%<\n>`:      {{0, token.String, []byte{0x0a}}},
+	`%Q{\n}`:     {{0, token.String, []byte{0x0a}}},
 
 	`'a'`:      {{0, token.String, []byte(`a`)}},
 	`'\''`:     {{0, token.String, []byte(`'`)}},
