@@ -268,8 +268,14 @@ var rules = map[string][]struct {
 		{8, token.HeredocEnd, nil},
 		{15, token.EOF, nil},
 	},
-	"<<-'TEXT'\n  TEXT\n": {
+	"<<-'TEXT'\n#{}\n  TEXT\n": {
 		{0, token.HeredocBegin, []byte("<<-'TEXT'")},
+		{9, token.NewLine, nil},
+		{10, token.HeredocEnd, []byte("#{}\n")},
+		{21, token.EOF, nil},
+	},
+	"<<-\"TEXT\"\n  TEXT\n": {
+		{0, token.HeredocBegin, []byte(`<<-"TEXT"`)},
 		{9, token.NewLine, nil},
 		{10, token.HeredocEnd, nil},
 		{17, token.EOF, nil},

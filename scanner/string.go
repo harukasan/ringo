@@ -212,6 +212,10 @@ func scanSingleQuotedString(s *Scanner, term byte, head int) (token.Token, []byt
 	return token.String, s.src[s.begin+head : s.offset-skip]
 }
 
+func isQuote(c byte) bool {
+	return c == '\'' || c == '"'
+}
+
 // TODO: cyclomatic complexity >= 12
 func scanHeredocBegin(s *Scanner) (token.Token, []byte) {
 	indent := false
@@ -234,23 +238,19 @@ func scanHeredocBegin(s *Scanner) (token.Token, []byte) {
 	default:
 		return token.Continue, nil
 	}
-
-	var quote byte
-	if s.char == '\'' {
-		quote = s.char
+	if isQuote(s.char) {
 		s.next()
-		termBegin = s.offset
 	}
 	for token.IsIdent(s.char) {
 		s.next()
 	}
-	term := s.src[termBegin:s.offset]
-	if quote != 0 {
-		if s.char != quote {
+	if isQuote(s.src[termBegin]) {
+		if s.char != s.src[termBegin] {
 			s.failf("invalid heredoc identifier")
 		}
 		s.next()
 	}
+	term := s.src[termBegin:s.offset]
 	s.pushCtx(stateHeredocFirstLine(term, indent))
 	return token.HeredocBegin, s.src[s.begin:s.offset]
 }
@@ -291,6 +291,17 @@ func isHeredocEndTerm(s *Scanner, term []byte, indent bool) (bool, int) {
 }
 
 func stateInHeredoc(term []byte, indent bool) stateScanFunc {
+	if term[0] == '\'' {
+		term = term[1 : len(term)-1]
+		return stateInHeredocSingleQuoted(term, indent)
+	}
+	if term[0] == '"' {
+		term = term[1 : len(term)-1]
+	}
+	return stateInHeredocDoubleQuoted(term, indent)
+}
+
+func stateInHeredocDoubleQuoted(term []byte, indent bool) stateScanFunc {
 	return func(s *Scanner) (int, token.Token, []byte) {
 		if s.char == '#' {
 			p, t, lit := scanInsert(s)
@@ -298,7 +309,6 @@ func stateInHeredoc(term []byte, indent bool) stateScanFunc {
 				return p, t, lit
 			}
 		}
-
 		s.begin = s.offset
 		for s.err == nil {
 			if isEnd, off := isHeredocEndTerm(s, term, indent); isEnd {
@@ -309,6 +319,21 @@ func stateInHeredoc(term []byte, indent bool) stateScanFunc {
 			if next == '@' || next == '$' || next == '{' {
 				return s.begin, token.HeredocPart, s.src[s.begin : s.offset-skip]
 			}
+			s.next()
+		}
+		return s.begin, token.Illegal, nil
+	}
+}
+
+func stateInHeredocSingleQuoted(term []byte, indent bool) stateScanFunc {
+	return func(s *Scanner) (int, token.Token, []byte) {
+		s.begin = s.offset
+		for s.err == nil {
+			if isEnd, off := isHeredocEndTerm(s, term, indent); isEnd {
+				s.popCtx()
+				return s.begin, token.HeredocEnd, s.src[s.begin:off]
+			}
+			scanSingleQuotedString(s, '\n', 0)
 			s.next()
 		}
 		return s.begin, token.Illegal, nil
