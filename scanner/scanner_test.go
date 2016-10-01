@@ -274,6 +274,12 @@ var rules = map[string][]struct {
 		{10, token.HeredocEnd, nil},
 		{17, token.EOF, nil},
 	},
+	"<<-\"TEXT\"\n  TEXT\n": {
+		{0, token.HeredocBegin, []byte(`<<-"TEXT"`)},
+		{9, token.NewLine, nil},
+		{10, token.HeredocEnd, nil},
+		{17, token.EOF, nil},
+	},
 	"1 <<1\n1\n": {
 		{0, token.DecimalInteger, []byte("1")},
 		{2, token.HeredocBegin, []byte("<<1")},
