@@ -405,12 +405,31 @@ func scanDiv(s *Scanner) (token.Token, []byte) {
 	return token.Div, nil
 }
 
+var symbolPrefixMap = [...]bool{
+	'!':  true,
+	'"':  true,
+	'$':  true,
+	'%':  true,
+	'&':  true,
+	'\'': true,
+	'*':  true,
+	'+':  true,
+	'-':  true,
+	'/':  true,
+	'<':  true,
+	'=':  true,
+	'>':  true,
+	'@':  true,
+	'[':  true,
+	'^':  true,
+	'_':  true,
+	'`':  true,
+	'|':  true,
+	'~':  true,
+}
+
 func isSymbolPrefix(c byte) bool {
-	return (('!' <= c && c != '#' && c <= '\'') ||
-		('*' <= c && c != ',' && c != '.' && c <= '9') ||
-		('<' <= c && c != '?' && c <= '[') ||
-		('^' <= c && c <= 'z') ||
-		c == '~')
+	return token.IsAlnum(c) || symbolPrefixMap[c]
 }
 
 func scanColon(s *Scanner) (token.Token, []byte) {
