@@ -324,6 +324,44 @@ var rules = map[string][]struct {
 		{3, token.IdentLocalVar, []byte("b")},
 	},
 
+	// symbol
+	":a": {
+		{0, token.SymbolBegin, nil},
+		{1, token.IdentLocalVar, []byte("a")},
+	},
+	":@a": {
+		{0, token.SymbolBegin, nil},
+		{1, token.IdentInstanceVar, []byte("@a")},
+	},
+	":@@a": {
+		{0, token.SymbolBegin, nil},
+		{1, token.IdentClassVar, []byte("@@a")},
+	},
+	":$a": {
+		{0, token.SymbolBegin, nil},
+		{1, token.IdentGlobalVar, []byte("$a")},
+	},
+	":<<": {
+		{0, token.SymbolBegin, nil},
+		{1, token.LShift, nil},
+	},
+	":'a'": {
+		{0, token.SymbolBegin, nil},
+		{1, token.String, []byte("a")},
+	},
+	":\"a\"": {
+		{0, token.SymbolBegin, nil},
+		{1, token.String, []byte("a")},
+	},
+	":\"#{a}\"": {
+		{0, token.SymbolBegin, nil},
+		{1, token.StringPart, nil},
+		{2, token.InsertBegin, nil},
+		{4, token.IdentLocalVar, []byte("a")},
+		{5, token.InsertEnd, nil},
+		{6, token.String, nil},
+	},
+
 	// keywords
 	"__LINE__":     {{0, token.KeywordLINE, nil}},
 	"__ENCODING__": {{0, token.KeywordENCODING, nil}},
