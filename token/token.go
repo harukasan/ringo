@@ -27,6 +27,7 @@ const (
 	HeredocEnd
 	InsertBegin
 	InsertEnd
+	SymbolBegin
 
 	// brackets:
 	LParen   // (
